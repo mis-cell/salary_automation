@@ -55,83 +55,91 @@ export default function Dashboard() {
     <div className="flex flex-col gap-6 animate-in fade-in duration-200">
       
       {/* Visual Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-5">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200pb-5">
         <div>
-          <h1 className="text-xl font-extrabold text-slate-950 tracking-tight">Financial Overview</h1>
-          <p className="text-slate-500 text-xs font-semibold mt-0.5">Real-time stats and ledger ratios synced live from your configured spreadsheet tables.</p>
+          <h1 className="text-2xl font-black text-slate-950 tracking-tight font-display">Financial Overview</h1>
+          <p className="text-slate-500 text-xs font-semibold mt-1">Real-time enterprise statistics and ledger ratios synced live from your spreadsheet.</p>
+        </div>
+        <div className="flex items-center gap-2 self-start md:self-auto">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span className="text-[10px] text-slate-500 font-extrabold uppercase tracking-wider">Live G-Sheets Link Live</span>
         </div>
       </div>
 
       {loading ? (
-        <div className="flex flex-col items-center justify-center p-24 bg-white border border-slate-200 rounded-[24px] shadow-xs">
-          <Loader2 className="w-8 h-8 text-slate-900 animate-spin mb-3" />
-          <p className="text-slate-500 font-bold text-xs">Syncing Active Spreadsheet Records...</p>
+        <div className="flex flex-col items-center justify-center p-24 bg-white border border-slate-200/80 rounded-[32px] shadow-premium">
+          <Loader2 className="w-8 h-8 text-indigo-600 animate-spin mb-4" />
+          <p className="text-slate-950 font-black text-sm tracking-tight">Syncing Active Spreadsheet Records...</p>
+          <p className="text-slate-400 text-xs mt-1">Downloading master payroll rows and balance data</p>
         </div>
       ) : (
         <>
-          {/* Bento-Grid Stats Widgets */}
+          {/* Bento-Grid Stats Widgets with World's Best SaaS Styling */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             
-            {/* Card 1 */}
-            <div className="bg-white p-6 rounded-[24px] border border-slate-250 hover:border-slate-350 transition-all shadow-xs relative overflow-hidden group">
+            {/* Card 1 - Aggregate Payroll Container */}
+            <div className="bg-white p-6 rounded-[24px] border border-slate-200/80 hover:border-slate-300 transition-all duration-300 shadow-premium hover:shadow-premium-hover relative overflow-hidden group">
+              <div className="absolute top-0 left-0 right-0 h-1.5 bg-linear-to-r from-slate-950 via-indigo-950 to-slate-900"></div>
               <div className="flex justify-between items-start">
-                <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-900 shadow-xs">
-                  <DollarSign className="w-5 h-5" />
+                <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-950 shadow-xs border border-slate-100">
+                  <DollarSign className="w-5 h-5 text-indigo-600" />
                 </div>
-                <span className="text-[10px] text-slate-400 font-black tracking-widest uppercase">AGGREGATE MONTHLY</span>
+                <span className="text-[9px] bg-slate-100/80 text-slate-500 font-black tracking-widest uppercase px-2 py-0.5 rounded-sm border border-slate-200/30">AGGREGATE MONTHLY</span>
               </div>
               <div className="mt-5">
                 <span className="text-[11px] text-slate-400 font-extrabold block">Combined Gross Wages</span>
-                <span className="text-2xl font-black text-slate-950 tracking-tight block mt-0.5">{formatCurrency(totalMonthlyGrossSum)}</span>
+                <span className="text-3xl font-black text-slate-950 tracking-tight block mt-0.5 font-display">{formatCurrency(totalMonthlyGrossSum)}</span>
               </div>
-              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-[10px] text-slate-500 font-bold inline-flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span>
+              <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between">
+                <span className="text-[10px] text-slate-500 font-bold inline-flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse inline-block"></span>
                   Active Roster Count ({activeEmployees.length} personnel)
                 </span>
-                <span className="text-[10px] text-emerald-600 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded font-black">100% Workable</span>
+                <span className="text-[9px] text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded font-black uppercase tracking-wider">100% Workable</span>
               </div>
             </div>
 
-            {/* Card 2 */}
-            <div className="bg-white p-6 rounded-[24px] border border-slate-250 hover:border-slate-350 transition-all shadow-xs relative overflow-hidden group">
+            {/* Card 2 - Regular Staff */}
+            <div className="bg-white p-6 rounded-[24px] border border-slate-200/80 hover:border-slate-300 transition-all duration-300 shadow-premium hover:shadow-premium-hover relative overflow-hidden group">
+              <div className="absolute top-0 left-0 right-0 h-1.5 bg-linear-to-r from-indigo-505 from-indigo-650 to-indigo-500"></div>
               <div className="flex justify-between items-start">
-                <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-900 shadow-xs">
-                  <Users className="w-5 h-5" />
+                <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-950 shadow-xs border border-slate-100">
+                  <Users className="w-5 h-5 text-indigo-600" />
                 </div>
-                <span className="text-[10px] text-slate-400 font-black tracking-widest uppercase">REGULAR STAFF</span>
+                <span className="text-[9px] bg-slate-100/80 text-slate-500 font-black tracking-widest uppercase px-2 py-0.5 rounded-sm border border-slate-200/30">REGULAR STAFF</span>
               </div>
               <div className="mt-5">
                 <span className="text-[11px] text-slate-400 font-extrabold block">Standard Component CTC</span>
-                <span className="text-2xl font-black text-slate-950 tracking-tight block mt-0.5">{formatCurrency(totalRegularGross)}</span>
+                <span className="text-3xl font-black text-slate-950 tracking-tight block mt-0.5 font-display">{formatCurrency(totalRegularGross)}</span>
               </div>
-              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+              <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between">
                 <span className="text-[10px] text-slate-500 font-bold">
                   {regularCount} Salary Records Mapped
                 </span>
-                <span className="text-[10px] text-slate-400 font-extrabold">
+                <span className="text-[10px] text-indigo-650 bg-indigo-50 border border-indigo-100/50 px-2.5 py-0.5 rounded font-black font-mono">
                   {totalMonthlyGrossSum > 0 ? ((totalRegularGross / totalMonthlyGrossSum) * 100).toFixed(0) : 0}% of budget
                 </span>
               </div>
             </div>
 
-            {/* Card 3 */}
-            <div className="bg-white p-6 rounded-[24px] border border-slate-250 hover:border-slate-350 transition-all shadow-xs relative overflow-hidden group">
+            {/* Card 3 - Consolidated Staff */}
+            <div className="bg-white p-6 rounded-[24px] border border-slate-200/80 hover:border-slate-300 transition-all duration-300 shadow-premium hover:shadow-premium-hover relative overflow-hidden group">
+              <div className="absolute top-0 left-0 right-0 h-1.5 bg-linear-to-r from-emerald-650 to-emerald-500"></div>
               <div className="flex justify-between items-start">
-                <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-900 shadow-xs">
-                  <Calendar className="w-5 h-5" />
+                <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-950 shadow-xs border border-slate-100">
+                  <Calendar className="w-5 h-5 text-emerald-600" />
                 </div>
-                <span className="text-[10px] text-slate-400 font-black tracking-widest uppercase">CONSOLIDATED STAFF</span>
+                <span className="text-[9px] bg-slate-100/80 text-slate-500 font-black tracking-widest uppercase px-2 py-0.5 rounded-sm border border-slate-200/30">CONSOLIDATED STAFF</span>
               </div>
               <div className="mt-5">
                 <span className="text-[11px] text-slate-400 font-extrabold block">Contract Consolidated CTC</span>
-                <span className="text-2xl font-black text-slate-950 tracking-tight block mt-0.5">{formatCurrency(totalConsolidatedGross)}</span>
+                <span className="text-3xl font-black text-slate-950 tracking-tight block mt-0.5 font-display">{formatCurrency(totalConsolidatedGross)}</span>
               </div>
-              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+              <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between">
                 <span className="text-[10px] text-slate-500 font-bold">
                   {consolidatedCount} Caretakers / Contractees
                 </span>
-                <span className="text-[10px] text-slate-400 font-extrabold">
+                <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-100 px-2.5 py-0.5 rounded font-black font-mono">
                   {totalMonthlyGrossSum > 0 ? ((totalConsolidatedGross / totalMonthlyGrossSum) * 100).toFixed(0) : 0}% of budget
                 </span>
               </div>
@@ -140,50 +148,50 @@ export default function Dashboard() {
           </div>
 
           {/* Interactive Chart Component & Calculation logs */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-2">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
             
             {/* Split 1: Calculation Run History */}
-            <div className="lg:col-span-2 bg-white rounded-[24px] border border-slate-250 shadow-xs overflow-hidden flex flex-col">
-              <div className="p-5 border-b border-slate-150 bg-slate-50/50 flex items-center justify-between">
+            <div className="lg:col-span-2 bg-white rounded-[24px] border border-slate-200/80 shadow-premium overflow-hidden flex flex-col">
+              <div className="p-5 border-b border-slate-100 bg-slate-50/30 flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-extrabold text-slate-950">Calculation Run History</h3>
-                  <p className="text-[11px] text-slate-500 mt-0.5">Official database entries posted in "dashboard_summary"</p>
+                  <h3 className="text-sm font-black text-slate-950 font-display">Calculation Run History</h3>
+                  <p className="text-[11px] text-slate-500 mt-0.5 font-semibold">Official database entries posted in "dashboard_summary"</p>
                 </div>
-                <div className="bg-slate-100 px-2 py-1 rounded text-[10px] font-bold text-slate-600 block">
-                  Sheet Sync Complete
+                <div className="bg-emerald-50 text-emerald-800 border border-emerald-100 px-2.5 py-1 rounded-lg text-[9px] font-extrabold uppercase tracking-wider block">
+                  Sheet Synced
                 </div>
               </div>
 
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse whitespace-nowrap">
                   <thead>
-                    <tr className="border-b border-slate-100 text-[10px] font-black uppercase text-slate-400 bg-slate-50/30">
-                      <th className="py-3 px-5">Payroll Period</th>
-                      <th className="py-3 px-4 text-right">Aggregate Remuneration</th>
-                      <th className="py-3 px-4 text-right">Regular Total</th>
-                      <th className="py-3 px-4 text-right">Consolidated Total</th>
-                      <th className="py-3 px-4 text-center">Status Label</th>
+                    <tr className="border-b border-slate-100 text-[10px] font-black uppercase text-slate-400 bg-slate-50/20">
+                      <th className="py-3.5 px-5">Payroll Period</th>
+                      <th className="py-3.5 px-4 text-right">Aggregate Remuneration</th>
+                      <th className="py-3.5 px-4 text-right">Regular Total</th>
+                      <th className="py-3.5 px-4 text-right">Consolidated Total</th>
+                      <th className="py-3.5 px-4 text-center">Status Label</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-[11px] font-semibold text-slate-700">
                     {summaryRows.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="py-12 text-center text-slate-400 font-bold">No calculated records posted inside dashboard_summary sheet.</td>
+                        <td colSpan={5} className="py-16 text-center text-slate-400 font-bold bg-slate-50/5 text-xs">No calculated records posted inside dashboard_summary sheet.</td>
                       </tr>
                     ) : (
                       summaryRows.map((d, index) => (
-                        <tr key={index} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="py-4 px-5 font-bold text-slate-900">{d.month} {d.year}</td>
-                          <td className="py-4 px-4 text-right">
-                            <span className="font-extrabold text-slate-950 bg-slate-100 border border-slate-200/50 px-2 py-1 rounded">
+                        <tr key={index} className="hover:bg-slate-50/30 transition-colors">
+                          <td className="py-3.5 px-5 font-black text-slate-950 font-display text-sm tracking-tight">{d.month} {d.year}</td>
+                          <td className="py-3.5 px-4 text-right">
+                            <span className="font-extrabold text-slate-950 bg-slate-100 border border-slate-205 border-slate-200/50 px-2.5 py-1 rounded-lg font-mono text-[11px]">
                               {formatCurrency(d.totalPaid)}
                             </span>
                           </td>
-                          <td className="py-4 px-4 text-right font-medium text-slate-505">{formatCurrency(d.regularTotal)}</td>
-                          <td className="py-4 px-4 text-right font-medium text-slate-505">{formatCurrency(d.consolidatedTotal)}</td>
-                          <td className="py-4 px-4 text-center">
-                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 text-emerald-800 border border-emerald-100 text-[10px] font-extrabold rounded">
-                              <CheckCircle className="w-3 h-3 shrink-0" /> {d.status}
+                          <td className="py-3.5 px-4 text-right font-extrabold text-slate-500 font-mono text-[11px]">{formatCurrency(d.regularTotal)}</td>
+                          <td className="py-3.5 px-4 text-right font-extrabold text-slate-500 font-mono text-[11px]">{formatCurrency(d.consolidatedTotal)}</td>
+                          <td className="py-3.5 px-4 text-center">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-100 text-[9px] font-extrabold uppercase tracking-wider rounded-md">
+                              <CheckCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" /> {d.status}
                             </span>
                           </td>
                         </tr>
@@ -195,13 +203,13 @@ export default function Dashboard() {
             </div>
 
             {/* Split 2: Visual Budget Proportion Chart */}
-            <div className="lg:col-span-1 bg-white rounded-[24px] border border-slate-250 shadow-xs p-6 flex flex-col gap-6">
+            <div className="lg:col-span-1 bg-white rounded-[24px] border border-slate-200/80 shadow-premium p-6 flex flex-col gap-6">
               <div>
-                <h3 className="text-sm font-extrabold text-slate-950 flex items-center gap-1.5">
-                  <BarChart3 className="w-4.5 h-4.5 text-slate-600" />
+                <h3 className="text-sm font-black text-slate-950 font-display flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-slate-700" />
                   Budget Distribution
                 </h3>
-                <p className="text-[11px] text-slate-500 mt-0.5">Budget ratio allocated by staff designation type.</p>
+                <p className="text-[11px] text-slate-500 mt-1 font-semibold">Budget ratio allocated by staff designation type.</p>
               </div>
 
               {totalMonthlyGrossSum === 0 ? (

@@ -9,21 +9,22 @@ import LeaveBalance from "./pages/LeaveBalance";
 import PayDetails from "./pages/PayDetails";
 import { getSheetId, setSheetId, getAppsScriptUrl, setAppsScriptUrl } from "./lib/googleSheetsService";
 
-// Clean, high-contrast, professional link matching modern SaaS apps
+// Clean, premium, high-contrast link matching elite SaaS apps
 const NavLink = ({ to, children, icon: Icon, mobile }: { to: string, children: React.ReactNode, icon?: any, mobile?: boolean }) => {
   const location = useLocation();
   const isActive = location.pathname === to;
   return (
     <Link
       to={to}
-      className={`px-4 py-2.5 rounded-xl flex items-center gap-2 text-sm transition-all duration-150 ${
+      id={`nav-link-${to.replace('/', 'home')}`}
+      className={`px-4 py-2 rounded-xl flex items-center gap-2.5 text-xs tracking-tight transition-all duration-200 cursor-pointer ${
         isActive 
-          ? "bg-slate-900 text-white font-bold shadow-sm" 
-          : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 font-semibold"
-      } ${mobile ? 'w-full mb-1 py-3 text-base' : ''}`}
+          ? "bg-slate-950 text-white font-extrabold shadow-sm border border-slate-950" 
+          : "text-slate-500 hover:bg-slate-100 hover:text-slate-950 font-bold border border-transparent"
+      } ${mobile ? 'w-full mb-1.5 py-3 text-sm' : ''}`}
     >
-      {Icon && <Icon className={`w-4.5 h-4.5 ${isActive ? 'opacity-100' : 'opacity-70'}`} />}
-      {children}
+      {Icon && <Icon className={`w-4 h-4 transition-transform duration-200 ${isActive ? 'scale-105 stroke-[2.2px]' : 'opacity-75 group-hover:opacity-100'}`} />}
+      <span className="font-sans">{children}</span>
     </Link>
   );
 };
@@ -56,25 +57,46 @@ function AppContent() {
     window.location.reload();
   };
 
-  // Modern corporate light theme sign-in
+  // Ultra-premium executive light theme sign-in
   if (!user) {
     return (
-      <div className="min-h-screen flex flex-col justify-center items-center p-6 bg-slate-50 relative overflow-hidden bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:20px_20px]">
-        <div className="max-w-md w-full bg-white border border-slate-250 p-10 rounded-[32px] shadow-[0_20px_50px_rgba(15,23,42,0.05)] text-center relative z-10">
-          <div className="w-14 h-14 bg-slate-900 text-white rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-md shadow-slate-900/10">
-            <Calculator className="w-7 h-7"/>
+      <div className="min-h-screen flex flex-col justify-center items-center p-6 bg-slate-50 relative overflow-hidden">
+        {/* Soft elegant ambient blobs */}
+        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-indigo-200/40 rounded-full blur-[120px] pointer-events-none"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-emerald-100/45 rounded-full blur-[130px] pointer-events-none"></div>
+        <div className="absolute top-[40%] right-[20%] w-[350px] h-[350px] bg-sky-200/30 rounded-full blur-[100px] pointer-events-none"></div>
+
+        <div className="max-w-md w-full bg-white/80 backdrop-blur-md border border-slate-200 p-8 sm:p-10 rounded-[32px] shadow-premium hover:shadow-premium-hover transition-all duration-300 text-center relative z-10">
+          <div className="w-16 h-16 bg-linear-to-tr from-slate-950 to-indigo-950 text-white rounded-2xl flex items-center justify-center mx-auto mb-8 shadow-md relative group overflow-hidden">
+            <div className="absolute inset-0 bg-linear-to-r from-indigo-500/10 to-emerald-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <Calculator className="w-8 h-8 text-white relative z-10 animate-pulse" />
           </div>
-          <h1 className="text-2xl font-black text-slate-900 mb-2 tracking-tight">Yashoda Enterprise</h1>
-          <p className="text-slate-500 mb-8 text-xs font-semibold leading-relaxed">
+          
+          <span className="text-[10px] bg-slate-100 text-slate-800 font-extrabold px-3 py-1 rounded-full uppercase tracking-wider inline-block mb-3 border border-slate-200/50">
+            Secure Payroll Portal
+          </span>
+          <h1 className="text-3xl font-black text-slate-950 mb-3 tracking-tight font-display">
+            Yashoda Enterprise
+          </h1>
+          <p className="text-slate-500 mb-8 text-xs font-semibold leading-relaxed max-w-sm mx-auto">
             Professional Multi-Sheet Payroll Ledger Management <br />
             and AutoPay Calculation Engine.
           </p>
-          <button
-            onClick={login}
-            className="w-full bg-slate-900 hover:bg-slate-800 text-white px-6 py-3.5 rounded-xl text-sm font-bold shadow-md hover:scale-[1.01] transition-all duration-200 active:scale-[0.99] flex items-center justify-center gap-2"
-          >
-            Sign in as payroll administrator
-          </button>
+
+          <div className="space-y-4 mb-2">
+            <button
+              onClick={login}
+              id="login-admin-btn"
+              className="w-full bg-slate-950 hover:bg-indigo-950 text-white px-6 py-3.5 rounded-xl text-sm font-bold shadow-md hover:scale-[1.01] transition-all duration-200 active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer group"
+            >
+              <span>Sign in as payroll administrator</span>
+              <Check className="w-4 h-4 text-emerald-400 group-hover:scale-110 transition-transform" />
+            </button>
+            <div className="flex justify-center items-center gap-2 text-[10px] text-slate-400 font-bold">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>Encrypted live synchronization in effect</span>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -89,11 +111,14 @@ function AppContent() {
           <div className="flex items-center justify-between h-16 sm:h-20">
             
             {/* Logo */}
-            <div className="flex items-center gap-3 font-black text-lg tracking-tight text-slate-900">
-              <div className="w-9 h-9 rounded-xl bg-slate-900 flex items-center justify-center text-white text-md font-black shadow-inner">
+            <div className="flex items-center gap-3 font-black text-lg tracking-tight text-slate-950">
+              <div className="w-10 h-10 rounded-xl bg-linear-to-tr from-slate-950 to-indigo-950 flex items-center justify-center text-white text-md font-black shadow-premium">
                 Y
               </div>
-              <span>Yashoda Payroll</span>
+              <div className="flex flex-col leading-none">
+                <span className="font-display font-black text-sm tracking-tight text-slate-950">Yashoda Enterprise</span>
+                <span className="text-[9px] font-black text-indigo-600 uppercase tracking-widest mt-0.5">Payroll Portal</span>
+              </div>
             </div>
 
             {/* Desktop Nav */}
