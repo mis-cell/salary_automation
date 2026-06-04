@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Routes, Route, Link, useLocation, BrowserRouter } from "react-router-dom";
+import { Routes, Route, Link, useLocation, HashRouter } from "react-router-dom";
 import { useAuth, AuthProvider } from "./lib/AuthContext";
 import { Menu, LogOut, FileText, Users, CalendarDays, LayoutDashboard, Calculator, IndianRupee } from "lucide-react";
 import Dashboard from "./pages/Dashboard";
@@ -28,11 +28,11 @@ const NavLink = ({ to, children, icon: Icon, mobile }: { to: string, children: R
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <HashRouter>
       <AuthProvider>
         <AppContent />
       </AuthProvider>
-    </BrowserRouter>
+    </HashRouter>
   );
 }
 
