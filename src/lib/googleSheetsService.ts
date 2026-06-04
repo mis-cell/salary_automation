@@ -45,8 +45,6 @@ export interface DashboardSummaryRow {
   status: string;
 }
 
-const SHEET_ID = '1IoGYxMMOrVzkHyqp1n2InXgf14jLJUEfKZMX5MWVBj4';
-
 // Secure float helper
 const parseNum = (val: any): number => {
   if (val === null || val === undefined) return 0;
@@ -56,22 +54,47 @@ const parseNum = (val: any): number => {
   return isNaN(parsed) ? 0 : parsed;
 };
 
+// Retrieve sheet ID dynamically from localStorage with hardcoded fallback
+export function getSheetId(): string {
+  const custom = localStorage.getItem('YASHODA_SHEET_ID');
+  if (custom && custom.trim().length > 10) {
+    return custom.trim();
+  }
+  return '1IoGYxMMOrVzkHyqp1n2InXgf14jLJUEfKZMX5MWVBj4';
+}
+
+export function setSheetId(id: string) {
+  if (id) {
+    localStorage.setItem('YASHODA_SHEET_ID', id.trim());
+  } else {
+    localStorage.removeItem('YASHODA_SHEET_ID');
+  }
+}
+
 /**
  * Universal Gviz Google Sheets reader
  */
 async function fetchSheetRows(sheetName: string): Promise<any[][]> {
+  const sheetId = getSheetId();
   try {
-    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
+    const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
     const response = await fetch(url);
     if (!response.ok) {
-      throw new Error(`Failed to fetch from Google Sheets: ${response.status} ${response.statusText}`);
+      throw new Error(`Google Sheets responded with status ${response.status}: ${response.statusText}`);
     }
     const text = await response.text();
     const match = text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\);/);
     if (!match) {
-      throw new Error("Invalid Gviz query response wrapper structure.");
+      throw new Error("Invalid Gviz query structure returned. Please make sure the sheet is published or shared with 'Anyone with the link can view'.");
     }
     const obj = JSON.parse(match[1]);
+    
+    // Check if Google Sheets claims there was an error fetching
+    if (obj.status === 'error') {
+      const reason = obj.errors?.[0]?.detailed_message || obj.errors?.[0]?.message || 'Unknown Google Sheets Gviz Error';
+      throw new Error(`Google Sheets error: ${reason}`);
+    }
+
     const table = obj.table;
     if (!table || !table.rows) return [];
 
@@ -83,9 +106,14 @@ async function fetchSheetRows(sheetName: string): Promise<any[][]> {
         return cell.v;
       });
     });
-  } catch (err) {
+  } catch (err: any) {
     console.error(`Error parsing sheet ${sheetName}:`, err);
-    throw err;
+    // Produce human-friendly sharing suggestions
+    let friendlyMessage = err.message || String(err);
+    if (friendlyMessage.includes("Failed to fetch") || friendlyMessage.includes("NetworkError")) {
+      friendlyMessage = "CORS Policy Blocked Fetch. This happens when your Google Sheet is private. Open your Google Sheet, click 'Share' in the top-right, and change general access to 'Anyone with the link can view' (Viewer).";
+    }
+    throw new Error(friendlyMessage);
   }
 }
 
