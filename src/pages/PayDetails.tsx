@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "../lib/AuthContext";
-import { fetchEmployeeDetails, EmployeeRow } from "../lib/googleSheetsService";
-import { FileText, Printer, AlertCircle, Loader2, IndianRupee, Search, ChevronRight, Check, X, ShieldAlert, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { fetchEmployeeDetails, fetchLeaveBalances, EmployeeRow, LeaveBalanceRow } from "../lib/googleSheetsService";
+import { FileText, Printer, AlertCircle, Loader2, IndianRupee, Search, ChevronRight, Check, X, ShieldAlert, ArrowUpDown, ArrowUp, ArrowDown, Palette } from "lucide-react";
 
 // Robust Indian currency translation to text format
 function numberToWords(num: number): string {
@@ -57,9 +57,74 @@ function numberToWords(num: number): string {
   return "Rupees " + result.trim() + " Only";
 }
 
+interface ThemeStyles {
+  label: string;
+  colorHex: string;
+  topAccent: string;
+  netPayableBg: string;
+  netPayableTextLabel: string;
+  netPayableTextWords: string;
+  payableDaysBadge: string;
+  highlightBg: string;
+}
+
+const themeConfigs: Record<"classic" | "emerald" | "crimson" | "cobalt" | "mono", ThemeStyles> = {
+  classic: {
+    label: "Corporate Slate",
+    colorHex: "#1e1b4b", // deep indigo-950
+    topAccent: "bg-indigo-950",
+    netPayableBg: "bg-indigo-950",
+    netPayableTextLabel: "text-indigo-200",
+    netPayableTextWords: "text-indigo-100",
+    payableDaysBadge: "text-indigo-700 bg-indigo-50 border-indigo-100",
+    highlightBg: "bg-indigo-50/25"
+  },
+  emerald: {
+    label: "Emerald Ledger",
+    colorHex: "#022c22", // deep emerald-950
+    topAccent: "bg-emerald-950",
+    netPayableBg: "bg-emerald-950",
+    netPayableTextLabel: "text-emerald-250",
+    netPayableTextWords: "text-emerald-50",
+    payableDaysBadge: "text-emerald-700 bg-emerald-50 border-emerald-100",
+    highlightBg: "bg-emerald-50/25"
+  },
+  crimson: {
+    label: "Executive Wine",
+    colorHex: "#4c0519", // deep rose-950
+    topAccent: "bg-rose-950",
+    netPayableBg: "bg-rose-950",
+    netPayableTextLabel: "text-rose-200",
+    netPayableTextWords: "text-rose-100",
+    payableDaysBadge: "text-rose-700 bg-rose-50 border-rose-100",
+    highlightBg: "bg-rose-50/25"
+  },
+  cobalt: {
+    label: "Modern Cobalt",
+    colorHex: "#172554", // deep blue-950
+    topAccent: "bg-blue-950",
+    netPayableBg: "bg-blue-950",
+    netPayableTextLabel: "text-blue-200",
+    netPayableTextWords: "text-blue-100",
+    payableDaysBadge: "text-blue-700 bg-blue-50 border-blue-100",
+    highlightBg: "bg-blue-50/25"
+  },
+  mono: {
+    label: "Carbon Print",
+    colorHex: "#0f172a", // slate-900
+    topAccent: "bg-slate-900",
+    netPayableBg: "bg-slate-900",
+    netPayableTextLabel: "text-slate-300",
+    netPayableTextWords: "text-slate-100",
+    payableDaysBadge: "text-slate-800 bg-slate-100 border-slate-350",
+    highlightBg: "bg-slate-100"
+  }
+};
+
 export default function PayDetails() {
   const { accessToken } = useAuth();
   const [employees, setEmployees] = useState<EmployeeRow[]>([]);
+  const [leaveBalances, setLeaveBalances] = useState<LeaveBalanceRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -75,9 +140,38 @@ export default function PayDetails() {
   const [selectedSlipEmp, setSelectedSlipEmp] = useState<EmployeeRow | null>(null);
   const [slipMonth, setSlipMonth] = useState("June");
   const [slipYear, setSlipYear] = useState("2026");
-  const [customArrears, setCustomArrears] = useState(0);
+  
+  // Custom template interactive simulations
+  const [basicArrear, setBasicArrear] = useState(0);
+  const [hraArrear, setHraArrear] = useState(0);
+  const [convArrear, setConvArrear] = useState(0);
+  const [advDeduction, setAdvDeduction] = useState(0);
+  const [itaxDeduction, setItaxDeduction] = useState(0);
+  const [othersDeduction, setOthersDeduction] = useState(0);
+  const [payableDays, setPayableDays] = useState(30);
+  const [payslipTheme, setPayslipTheme] = useState<"classic" | "emerald" | "crimson" | "cobalt" | "mono">(() => {
+    const saved = localStorage.getItem("PAYSLIP_PREFER_THEME");
+    if (saved === "classic" || saved === "emerald" || saved === "crimson" || saved === "cobalt" || saved === "mono") {
+      return saved as "classic" | "emerald" | "crimson" | "cobalt" | "mono";
+    }
+    return "classic";
+  });
 
   const printAreaRef = useRef<HTMLDivElement>(null);
+
+  const getDaysInMonth = (monthName: string, yearStr: string): number => {
+    const list = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const idx = list.indexOf(monthName);
+    if (idx === -1) return 30;
+    const yr = parseInt(yearStr) || 2026;
+    return new Date(yr, idx + 1, 0).getDate();
+  };
+
+  // Reset payable days when month, year, or employee is modified
+  useEffect(() => {
+    const totalDays = getDaysInMonth(slipMonth, slipYear);
+    setPayableDays(totalDays);
+  }, [slipMonth, slipYear, selectedSlipEmp]);
 
   const loadData = async () => {
     setLoading(true);
@@ -85,6 +179,13 @@ export default function PayDetails() {
     try {
       const data = await fetchEmployeeDetails();
       setEmployees(data);
+
+      try {
+        const leaveData = await fetchLeaveBalances();
+        setLeaveBalances(leaveData);
+      } catch (err) {
+        console.warn("Leave balances fetch warning", err);
+      }
       
       // Initialize default statuses for employees
       const initialStatuses: Record<string, "Processed" | "Pending" | "Error"> = {};
@@ -199,27 +300,79 @@ export default function PayDetails() {
   };
 
   // Safe Math Computations base rates
-  const selectedBasic = selectedSlipEmp?.basic || 0;
-  const selectedHra = selectedSlipEmp?.hra || 0;
-  const selectedConv = selectedSlipEmp?.conv || 0;
-  const selectedBonus = selectedSlipEmp?.bonus || 0;
-  const selectedGratuity = selectedSlipEmp?.gratuity || 0;
-  const selectedLta = selectedSlipEmp?.lta || 0;
+  const daysInMonth = getDaysInMonth(slipMonth, slipYear);
+  const actualBasic = selectedSlipEmp?.basic || 0;
+  const actualHra = selectedSlipEmp?.hra || 0;
+  const actualConv = selectedSlipEmp?.conv || 0;
 
-  // Deductions
-  const selectedPf = selectedSlipEmp?.pf || 0;
-  const selectedEsi = selectedSlipEmp?.esi || 0;
-  const selectedMedi = selectedSlipEmp?.medi || 0;
-  const selectedPTax = selectedSlipEmp?.salaryType === "REGULAR" ? 200 : 0; // Std Professional Tax
-
-  // Combined calculations
+  // Pro-rated payable calculations
   const isConsolType = selectedSlipEmp?.salaryType === "CONSOLIDATED";
-  const finalGross = isConsolType 
-    ? selectedSlipEmp?.grossSalary || selectedBasic 
-    : (selectedBasic + selectedHra + selectedConv + selectedBonus + selectedGratuity + selectedLta + customArrears);
+  const payableBasic = isConsolType ? (selectedSlipEmp?.grossSalary || actualBasic) : Math.round((actualBasic * payableDays) / daysInMonth);
+  const payableHra = isConsolType ? 0 : Math.round((actualHra * payableDays) / daysInMonth);
+  const payableConv = isConsolType ? 0 : Math.round((actualConv * payableDays) / daysInMonth);
 
-  const finalDeductions = isConsolType ? 0 : (selectedPf + selectedEsi + selectedMedi + selectedPTax);
-  const finalNet = Math.max(0, finalGross - finalDeductions);
+  // Totals calculations
+  const totalPay = isConsolType 
+    ? (selectedSlipEmp?.grossSalary || actualBasic) 
+    : (payableBasic + payableHra + payableConv);
+
+  const totalArrears = isConsolType ? 0 : (basicArrear + hraArrear + convArrear);
+  const grossPay = totalPay + totalArrears;
+
+  // Deductions from state & defaults
+  const dbPf = selectedSlipEmp?.pf || 0;
+  const dbEsi = selectedSlipEmp?.esi || 0;
+  // Professional tax is standard 200 for regular employees in West Bengal, or customizable
+  const defaultPTax = selectedSlipEmp?.salaryType === "REGULAR" ? 200 : 0;
+
+  const finalPf = isConsolType ? 0 : dbPf;
+  const finalEsi = isConsolType ? 0 : dbEsi;
+  const finalPTax = isConsolType ? 0 : defaultPTax;
+
+  const totalDeductions = isConsolType 
+    ? 0 
+    : (finalPf + finalEsi + finalPTax + advDeduction + itaxDeduction + othersDeduction);
+
+  const totalNetPayable = Math.max(0, grossPay - totalDeductions);
+
+  // Leave lookup helper matching the selected employee and month/year cycle
+  const getLeaveDetails = () => {
+    if (!selectedSlipEmp) return { usedPl: 0, plBalance: 0, usedSl: 0, slBalance: 0 };
+    
+    const exactMatch = leaveBalances.find(
+      b => b.empCode === selectedSlipEmp.empCode && 
+      b.month?.toLowerCase() === slipMonth.toLowerCase() && 
+      b.year === slipYear
+    );
+    if (exactMatch) {
+      return {
+        usedPl: exactMatch.usedPL || 0,
+        plBalance: exactMatch.closingPL ?? exactMatch.openingPL ?? 0,
+        usedSl: exactMatch.usedSL || 0,
+        slBalance: exactMatch.closingSL ?? exactMatch.openingSL ?? 0
+      };
+    }
+
+    const empRecords = leaveBalances.filter(b => b.empCode === selectedSlipEmp.empCode);
+    if (empRecords.length > 0) {
+      const latest = empRecords[empRecords.length - 1];
+      return {
+        usedPl: latest.closingPL || 0,
+        plBalance: latest.closingPL ?? latest.openingPL ?? 0,
+        usedSl: latest.closingSL || 0,
+        slBalance: latest.closingSL ?? latest.openingSL ?? 0
+      };
+    }
+
+    return {
+      usedPl: 0,
+      plBalance: selectedSlipEmp.pl || 0,
+      usedSl: 0,
+      slBalance: 8.5
+    };
+  };
+
+  const leaveInfo = getLeaveDetails();
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-200">
@@ -229,6 +382,8 @@ export default function PayDetails() {
         @media print {
           body * {
             visibility: hidden;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
           #printable-payslip, #printable-payslip * {
             visibility: visible;
@@ -242,6 +397,8 @@ export default function PayDetails() {
             box-shadow: none !important;
             padding: 0 !important;
             margin: 0 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
         }
       `}</style>
@@ -378,64 +535,165 @@ export default function PayDetails() {
           {/* Right Panel: Interactive Corporate Slip Document Previewer & Printer (xl:col-span-8) */}
           <div className="xl:col-span-8 flex flex-col gap-5">
             
-            {/* Live Slips configuration controller */}
-            <div className="bg-white border border-slate-200 p-5 rounded-[24px] shadow-premium grid grid-cols-1 sm:grid-cols-4 gap-4 print:hidden">
-              <div>
-                <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">Salary Month Cycle</label>
-                <select 
-                  value={slipMonth}
-                  onChange={(e) => setSlipMonth(e.target.value)}
-                  className="w-full text-xs font-black bg-white border border-slate-200 px-3 py-2 rounded-xl outline-none"
-                >
-                  {["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"].map(m => (
-                    <option key={m} value={m}>{m}</option>
-                  ))}
-                </select>
+            {/* Advanced Live Slips Configuration Controller */}
+            <div className="bg-white border border-slate-200 p-6 rounded-[24px] shadow-premium flex flex-col gap-5 print:hidden">
+              <div className="border-b border-slate-100 pb-3">
+                <span className="text-xs font-black text-slate-900 uppercase tracking-wide flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded bg-indigo-600 inline-block"></span>
+                  Corporate Payslip Live Controls
+                </span>
+                <p className="text-[11px] text-slate-400 font-semibold mt-0.5">Customize specific template headers, proration ratios, and ledger adjustments on-the-fly.</p>
               </div>
 
-              <div>
-                <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">Billing Year</label>
-                <input 
-                  type="number"
-                  value={slipYear}
-                  onChange={(e) => setSlipYear(e.target.value)}
-                  className="w-full text-xs font-black bg-white border border-slate-200 px-3 py-2 rounded-xl outline-none"
-                />
+              {/* Grid 1: Cycle Parameters & Prorating */}
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                <div>
+                  <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">Salary Month Cycle</label>
+                  <select 
+                    value={slipMonth}
+                    onChange={(e) => setSlipMonth(e.target.value)}
+                    className="w-full text-xs font-black bg-white border border-slate-200 px-3 py-2 rounded-xl outline-none focus:border-indigo-400"
+                  >
+                    {["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"].map(m => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">Billing Year</label>
+                  <input 
+                    type="number"
+                    value={slipYear}
+                    onChange={(e) => setSlipYear(e.target.value)}
+                    className="w-full text-xs font-black bg-white border border-slate-200 px-3 py-2 rounded-xl outline-none focus:border-indigo-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">Payslip Status</label>
+                  <select 
+                    value={selectedSlipEmp ? (payslipStatuses[selectedSlipEmp.empCode] || "Processed") : "Processed"}
+                    disabled={!selectedSlipEmp}
+                    onChange={(e) => {
+                      if (selectedSlipEmp) {
+                        const newStatus = e.target.value as "Processed" | "Pending" | "Error";
+                        setPayslipStatuses(prev => ({
+                          ...prev,
+                          [selectedSlipEmp.empCode]: newStatus
+                        }));
+                        localStorage.setItem(`PAYSLIP_STATUS_${selectedSlipEmp.empCode}`, newStatus);
+                      }
+                    }}
+                    className="w-full text-xs font-black bg-white border border-slate-200 px-3 py-2 rounded-xl outline-none text-slate-900 focus:border-indigo-400"
+                  >
+                    <option value="Processed">Processed</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Error">Error</option>
+                  </select>
+                </div>
+
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="text-[10px] font-black uppercase text-slate-400 block">Payable Days</label>
+                    <span className="text-[10px] font-black font-mono text-indigo-700 bg-indigo-50 px-1.5 py-0.2 rounded border border-indigo-100">{payableDays} / {daysInMonth} days</span>
+                  </div>
+                  <input 
+                    type="number"
+                    min="0"
+                    max={daysInMonth}
+                    value={payableDays}
+                    onChange={(e) => setPayableDays(Math.min(daysInMonth, Math.max(0, Number(e.target.value) || 0)))}
+                    className="w-full text-xs font-black bg-white border border-slate-200 px-3 py-2 rounded-xl outline-none focus:border-indigo-400"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">Simulate Arrears (₹)</label>
-                <input 
-                  type="number"
-                  min="0"
-                  value={customArrears}
-                  onChange={(e) => setCustomArrears(Math.max(0, Number(e.target.value) || 0))}
-                  placeholder="e.g. 1500"
-                  className="w-full text-xs font-black bg-white border border-slate-200 px-3 py-2 rounded-xl outline-none"
-                />
-              </div>
+              {/* Grid 2: Arrears & Deductions Simulations (Only shown/enabled for REGULAR employee types) */}
+              <div className={`p-4 rounded-2xl border transition-all ${isConsolType ? 'bg-slate-50 border-slate-200/50 opacity-60' : 'bg-indigo-50/10 border-indigo-100'}`}>
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-[10px] font-black uppercase text-indigo-900 tracking-wider">
+                    {isConsolType ? "Arrears & Deductions (N/A for Consolidated)" : "Custom Arrears & Deductions (Regular Staff Only)"}
+                  </span>
+                  {isConsolType && (
+                    <span className="text-[9px] bg-amber-50 text-amber-700 border border-amber-100 px-2 py-0.2 rounded font-black uppercase uppercase tracking-wider">Fixed Consolidated Sum Only</span>
+                  )}
+                </div>
 
-              <div>
-                <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">Payslip Status</label>
-                <select 
-                  value={selectedSlipEmp ? (payslipStatuses[selectedSlipEmp.empCode] || "Processed") : "Processed"}
-                  disabled={!selectedSlipEmp}
-                  onChange={(e) => {
-                    if (selectedSlipEmp) {
-                      const newStatus = e.target.value as "Processed" | "Pending" | "Error";
-                      setPayslipStatuses(prev => ({
-                        ...prev,
-                        [selectedSlipEmp.empCode]: newStatus
-                      }));
-                      localStorage.setItem(`PAYSLIP_STATUS_${selectedSlipEmp.empCode}`, newStatus);
-                    }
-                  }}
-                  className="w-full text-xs font-black bg-white border border-slate-200 px-3 py-2 rounded-xl outline-none text-slate-900"
-                >
-                  <option value="Processed">Processed</option>
-                  <option value="Pending">Pending</option>
-                  <option value="Error">Error</option>
-                </select>
+                <div className="grid grid-cols-2 sm:grid-cols-6 gap-3.5">
+                  <div>
+                    <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wide block mb-1">Basic Arrear (₹)</label>
+                    <input 
+                      type="number"
+                      min="0"
+                      disabled={isConsolType}
+                      value={basicArrear}
+                      onChange={(e) => setBasicArrear(Math.max(0, Number(e.target.value) || 0))}
+                      placeholder="e.g. 0"
+                      className="w-full text-xs font-black bg-white border border-slate-200 px-2.5 py-1.5 rounded-lg outline-none disabled:bg-slate-100 text-slate-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wide block mb-1">HRA Arrear (₹)</label>
+                    <input 
+                      type="number"
+                      min="0"
+                      disabled={isConsolType}
+                      value={hraArrear}
+                      onChange={(e) => setHraArrear(Math.max(0, Number(e.target.value) || 0))}
+                      placeholder="e.g. 0"
+                      className="w-full text-xs font-black bg-white border border-slate-200 px-2.5 py-1.5 rounded-lg outline-none disabled:bg-slate-100 text-slate-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wide block mb-1">Convey Arrear (₹)</label>
+                    <input 
+                      type="number"
+                      min="0"
+                      disabled={isConsolType}
+                      value={convArrear}
+                      onChange={(e) => setConvArrear(Math.max(0, Number(e.target.value) || 0))}
+                      placeholder="e.g. 0"
+                      className="w-full text-xs font-black bg-white border border-slate-200 px-2.5 py-1.5 rounded-lg outline-none disabled:bg-slate-100 text-slate-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[9px] font-bold text-rose-500 uppercase tracking-wide block mb-1">Advance (Adv.) (₹)</label>
+                    <input 
+                      type="number"
+                      min="0"
+                      disabled={isConsolType}
+                      value={advDeduction}
+                      onChange={(e) => setAdvDeduction(Math.max(0, Number(e.target.value) || 0))}
+                      placeholder="e.g. 0"
+                      className="w-full text-xs font-black bg-white border border-rose-200 px-2.5 py-1.5 rounded-lg outline-none disabled:bg-slate-100 text-rose-950 focus:border-rose-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[9px] font-bold text-rose-500 uppercase tracking-wide block mb-1">Income Tax (I.Tax) (₹)</label>
+                    <input 
+                      type="number"
+                      min="0"
+                      disabled={isConsolType}
+                      value={itaxDeduction}
+                      onChange={(e) => setItaxDeduction(Math.max(0, Number(e.target.value) || 0))}
+                      placeholder="e.g. 0"
+                      className="w-full text-xs font-black bg-white border border-rose-200 px-2.5 py-1.5 rounded-lg outline-none disabled:bg-slate-100 text-rose-950 focus:border-rose-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[9px] font-bold text-rose-500 uppercase tracking-wide block mb-1">Others (₹)</label>
+                    <input 
+                      type="number"
+                      min="0"
+                      disabled={isConsolType}
+                      value={othersDeduction}
+                      onChange={(e) => setOthersDeduction(Math.max(0, Number(e.target.value) || 0))}
+                      placeholder="e.g. 0"
+                      className="w-full text-xs font-black bg-white border border-rose-200 px-2.5 py-1.5 rounded-lg outline-none disabled:bg-slate-100 text-rose-950 focus:border-rose-400"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -443,15 +701,43 @@ export default function PayDetails() {
             {selectedSlipEmp ? (
               <div className="flex flex-col gap-4">
                 
-                {/* Print Control Bar */}
-                <div className="flex justify-between items-center bg-slate-900 text-white p-4 rounded-2xl shadow-xs print:hidden">
-                  <div className="flex items-center gap-2">
-                    <FileText className="w-4.5 h-4.5 text-slate-300" />
-                    <span className="text-xs font-bold text-slate-100">Live preview matches template format</span>
+                {/* Print Control Bar with Dynamic Theme Choice Selectors */}
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-[#0e1629] text-white p-4 sm:p-5 rounded-2xl gap-4 shadow-md border border-slate-800 print:hidden animate-in fade-in slide-in-from-top-2 duration-300">
+                  <div className="flex flex-col md:flex-row md:items-center gap-3 w-full sm:w-auto">
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Palette className="w-4 h-4 text-indigo-400" />
+                      <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Payslip theme:</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {(Object.keys(themeConfigs) as Array<keyof typeof themeConfigs>).map((tKey) => {
+                        const active = payslipTheme === tKey;
+                        const cfg = themeConfigs[tKey];
+                        return (
+                          <button
+                            key={tKey}
+                            onClick={() => {
+                              setPayslipTheme(tKey);
+                              localStorage.setItem("PAYSLIP_PREFER_THEME", tKey);
+                            }}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all tracking-wider cursor-pointer ${
+                              active 
+                                ? "bg-white text-slate-950 shadow-xs font-black" 
+                                : "bg-slate-900 text-slate-300 hover:bg-slate-850 border border-slate-800/80 hover:text-white"
+                            }`}
+                          >
+                            <span 
+                              className="w-2.5 h-2.5 rounded-full inline-block shrink-0 border border-white/20" 
+                              style={{ backgroundColor: cfg.colorHex }}
+                            />
+                            <span>{cfg.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                   <button
                     onClick={handlePrint}
-                    className="bg-white hover:bg-slate-150 text-slate-900 border border-transparent hover:border-slate-300 px-3 py-1.5 rounded-lg text-xs font-black flex items-center gap-1.5 transition-all shadow-sm active:scale-95 cursor-pointer"
+                    className="w-full sm:w-auto bg-white hover:bg-slate-100 text-slate-955 border border-transparent hover:border-slate-300 px-4 py-2 rounded-lg text-xs font-black flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-95 cursor-pointer shrink-0"
                   >
                     <Printer className="w-3.5 h-3.5" />
                     <span>Print Salary Slip</span>
@@ -464,203 +750,200 @@ export default function PayDetails() {
                   id="printable-payslip"
                   className="bg-white border border-slate-300 rounded-[24px] p-8 sm:p-10 shadow-lg text-slate-900 relative flex flex-col font-sans"
                 >
-                  {/* Decorative Banner */}
-                  <div className="border-b-4 border-slate-900 pb-5 mb-6 text-center sm:text-left flex flex-col sm:flex-row justify-between items-center gap-4">
-                    <div>
-                      <h2 className="text-xl font-black text-slate-950 tracking-tight select-none">YASHODA ENTERPRISE</h2>
-                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">Regd. Office: Secunderabad, Hyderabad, Telangana - 500003</p>
-                      <p className="text-[9px] text-slate-400 font-medium lowercase">email: accounts@yashoda.local • contact@yashoda.org</p>
-                    </div>
-                    <div className="text-center sm:text-right">
-                      <span className="bg-slate-100 border border-slate-200 text-slate-900 text-[10px] font-black tracking-widest px-3 py-1.5 rounded uppercase inline-block font-mono">
-                        PAYSLIP STATEMENT
-                      </span>
-                      <p className="text-slate-450 text-[11px] font-extrabold mt-1 text-slate-600 uppercase tracking-wide">
-                        Period: {slipMonth} {slipYear}
-                      </p>
-                      {selectedSlipEmp && (
-                        <div className="mt-2.5 flex justify-center sm:justify-end">
-                          {renderStatusBadge(payslipStatuses[selectedSlipEmp.empCode] || "Processed")}
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  {/* Ledger Border Top Accent */}
+                  <div className={`absolute top-0 left-0 right-0 h-2 ${themeConfigs[payslipTheme].topAccent} rounded-t-[24px]`}></div>
 
-                  {/* Employee parameters block */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-3.5 text-xs border-b border-dashed border-slate-200 pb-5 mb-5 font-semibold text-slate-800">
-                    <div>
-                      <span className="text-[10px] text-slate-400 block uppercase font-bold tracking-wider mb-0.5">EMPLOYEE CODES</span>
-                      <span className="font-mono text-slate-950 font-black">{selectedSlipEmp.empCode}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-slate-400 block uppercase font-bold tracking-wider mb-0.5">EMPLOYEE NAME</span>
-                      <span className="font-extrabold text-slate-950">{selectedSlipEmp.name}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-slate-400 block uppercase font-bold tracking-wider mb-0.5">DESIGNATION</span>
-                      <span className="text-slate-700">{selectedSlipEmp.designation}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-slate-400 block uppercase font-bold tracking-wider mb-0.5">DEPARTMENT</span>
-                      <span className="text-slate-700">{selectedSlipEmp.department}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-slate-400 block uppercase font-bold tracking-wider mb-0.5">DATE OF JOINING</span>
-                      <span className="text-slate-700 font-mono text-[11px]">{selectedSlipEmp.doj || "N/A"}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-slate-400 block uppercase font-bold tracking-wider mb-0.5">ROSTER STATUS</span>
-                      <span className="text-emerald-700 bg-emerald-50 border border-emerald-100/50 px-1.5 py-0.2 rounded uppercase text-[9px] font-black tracking-wider inline-block">
-                        {selectedSlipEmp.presentStatus}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-slate-400 block uppercase font-bold tracking-wider mb-0.5">SERIAL NUMBER</span>
-                      <span className="font-mono text-slate-500">{selectedSlipEmp.serialNumber || "-"}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-slate-400 block uppercase font-bold tracking-wider mb-0.5">PAYROLL CATEGORY</span>
-                      <span className="text-slate-950 bg-slate-100 px-2 py-0.2 border border-slate-200 rounded uppercase font-black text-[9px] inline-block">
-                        {selectedSlipEmp.salaryType}
+                  {/* Company Name and Header Block */}
+                  <div className="border-b-2 border-slate-900 pb-4 mb-5 text-center flex flex-col items-center gap-1 select-all">
+                    <h2 className="text-2xl font-black text-slate-950 tracking-tight leading-none uppercase font-semibold">
+                      YASHODA LINEN YARN LIMITED
+                    </h2>
+                    <p className="text-[11px] text-slate-500 font-bold uppercase tracking-wide mt-1">
+                      5 Middleton Street, Kankaria Park, Kolkata, West Bengal - 700071
+                    </p>
+                    <div className="mt-3">
+                      <span className="bg-slate-900 text-white text-[11px] font-black tracking-widest px-4 py-1.5 rounded uppercase font-mono shadow-xs">
+                        Payslip for the Month of {slipMonth}, {slipYear}
                       </span>
                     </div>
                   </div>
 
-                  {/* Earnings vs Deductions Spreadsheet Grid */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 items-start text-xs font-semibold mb-6">
-                    
-                    {/* Left Column: Earnings */}
+                  {/* Employee Leave and Details Roster aligned identically as in template columns */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border border-slate-900 p-4 rounded-xl mb-5 font-semibold text-slate-800 text-xs select-all bg-slate-50/10">
                     <div className="space-y-2">
-                      <div className="flex justify-between items-center border-b border-slate-900 pb-1.5 mb-1 bg-slate-50/20 px-2 py-1">
-                        <span className="text-[10px] font-black text-slate-950 uppercase tracking-wider">EARNINGS BREAKDOWN</span>
-                        <span className="text-[10px] font-black text-slate-950 uppercase tracking-wider">AMOUNT (INR)</span>
+                      <div className="flex justify-between border-b border-slate-100 pb-1">
+                        <span className="text-slate-500 font-bold">Employee Name :</span>
+                        <span className="font-extrabold text-slate-950 truncate whitespace-nowrap">{selectedSlipEmp.name}</span>
                       </div>
-                      
-                      {!isConsolType ? (
-                        <>
-                          <div className="flex justify-between items-center py-1.5 border-b border-slate-100 px-2 font-medium">
-                            <span className="text-slate-600">Basic Allowance Rate</span>
-                            <span className="font-mono text-slate-900">{formatCurrency(selectedBasic)}</span>
-                          </div>
-                          <div className="flex justify-between items-center py-1.5 border-b border-slate-100 px-2 font-medium">
-                            <span className="text-slate-600">House Rent Allowance (HRA)</span>
-                            <span className="font-mono text-slate-900">{formatCurrency(selectedHra)}</span>
-                          </div>
-                          <div className="flex justify-between items-center py-1.5 border-b border-slate-100 px-2 font-medium">
-                            <span className="text-slate-600">Conveyance Allowance</span>
-                            <span className="font-mono text-slate-900">{formatCurrency(selectedConv)}</span>
-                          </div>
-                          {selectedBonus > 0 && (
-                            <div className="flex justify-between items-center py-1.5 border-b border-slate-100 px-2 font-medium">
-                              <span className="text-slate-600">Monthly Performance Bonus</span>
-                              <span className="font-mono text-slate-900">{formatCurrency(selectedBonus)}</span>
-                            </div>
-                          )}
-                          {selectedLta > 0 && (
-                            <div className="flex justify-between items-center py-1.5 border-b border-slate-100 px-2 font-medium">
-                              <span className="text-slate-600">Leave Travel Allowance (LTA)</span>
-                              <span className="font-mono text-slate-900">{formatCurrency(selectedLta)}</span>
-                            </div>
-                          )}
-                          {selectedGratuity > 0 && (
-                            <div className="flex justify-between items-center py-1.5 border-b border-slate-100 px-2 font-medium">
-                              <span className="text-slate-600">Gratuity Accumulation</span>
-                              <span className="font-mono text-slate-900">{formatCurrency(selectedGratuity)}</span>
-                            </div>
-                          )}
-                          {customArrears > 0 && (
-                            <div className="flex justify-between items-center py-1.5 border-b border-slate-100 px-2 text-emerald-800 font-bold bg-emerald-50/20">
-                              <span>Simulated Arrears</span>
-                              <span className="font-mono">+{formatCurrency(customArrears)}</span>
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <div className="bg-slate-50 border border-slate-100 p-4 rounded-xl text-slate-500 font-medium">
-                          Consolidated employees receive a fixed master sum rate: <strong className="text-slate-950 font-black">{formatCurrency(finalGross)}</strong>
-                        </div>
-                      )}
-
+                      <div className="flex justify-between border-b border-slate-100 pb-1">
+                        <span className="text-slate-500 font-bold">Emp ID :</span>
+                        <span className="font-black font-mono text-slate-950">{selectedSlipEmp.empCode}</span>
+                      </div>
+                      <div className="flex justify-between pb-1">
+                        <span className="text-slate-500 font-bold">Department :</span>
+                        <span className="text-slate-950 font-extrabold">{selectedSlipEmp.department}</span>
+                      </div>
                     </div>
 
-                    {/* Right Column: Deductions */}
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center border-b border-slate-900 pb-1.5 mb-1 bg-slate-50/20 px-2 py-1">
-                        <span className="text-[10px] font-black text-slate-950 uppercase tracking-wider">DEDUCTIONS BREAKDOWN</span>
-                        <span className="text-[10px] font-black text-slate-950 uppercase tracking-wider">AMOUNT (INR)</span>
+                    <div className="space-y-2 md:pl-4 border-t md:border-t-0 md:border-l border-slate-200 pt-2 md:pt-0">
+                      <div className="flex justify-between border-b border-slate-100 pb-1">
+                        <span className="text-slate-500 font-bold">Designation :</span>
+                        <span className="text-slate-950 font-extrabold">{selectedSlipEmp.designation}</span>
                       </div>
+                      <div className="flex justify-between border-b border-slate-100 pb-1">
+                        <span className="text-slate-500 font-bold">DOJ :</span>
+                        <span className="text-slate-950 font-mono">{selectedSlipEmp.doj || "N/A"}</span>
+                      </div>
+                      <div className="flex justify-between pb-1">
+                        <span className="text-slate-500 font-bold">Payable days :</span>
+                        <span className={`font-black font-mono px-2 py-0.2 rounded border ${themeConfigs[payslipTheme].payableDaysBadge}`}>{payableDays} days</span>
+                      </div>
+                    </div>
+                  </div>
 
-                      {!isConsolType ? (
-                        <>
-                          {selectedPf > 0 && (
-                            <div className="flex justify-between items-center py-1.5 border-b border-slate-100 px-2 font-medium">
-                              <span className="text-rose-800">Provident Fund (P.F) Contrib</span>
-                              <span className="font-mono text-rose-700">-{formatCurrency(selectedPf)}</span>
-                            </div>
-                          )}
-                          {selectedEsi > 0 && (
-                            <div className="flex justify-between items-center py-1.5 border-b border-slate-100 px-2 font-medium">
-                              <span className="text-rose-800">State Insurance (E.S.I) Contrib</span>
-                              <span className="font-mono text-rose-700">-{formatCurrency(selectedEsi)}</span>
-                            </div>
-                          )}
-                          {selectedMedi > 0 && (
-                            <div className="flex justify-between items-center py-1.5 border-b border-slate-100 px-2 font-medium">
-                              <span className="text-rose-800">Mediclaim Premium Deduction</span>
-                              <span className="font-mono text-rose-700">-{formatCurrency(selectedMedi)}</span>
-                            </div>
-                          )}
-                          {selectedPTax > 0 && (
-                            <div className="flex justify-between items-center py-1.5 border-b border-slate-100 px-2 font-medium">
-                              <span className="text-rose-800">Professional Tax (P.Tax Status)</span>
-                              <span className="font-mono text-rose-700">-{formatCurrency(selectedPTax)}</span>
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <div className="bg-slate-50 border border-slate-100 p-4 rounded-xl text-slate-500 font-medium flex items-center gap-1.5">
-                          <span>Verified - Consolidated staff aren't subject to PF/ESI system deductions.</span>
-                        </div>
-                      )}
+                  {/* Employee Leave Summary Block */}
+                  <div className="border border-slate-950 rounded-xl p-3.5 mb-5 bg-slate-50/50">
+                    <span className="text-[10px] font-black uppercase text-slate-900 tracking-wider block border-b border-slate-200 pb-1 mb-2.5">
+                      Employee Leave Summary
+                    </span>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs font-semibold text-slate-800">
+                      <div className="flex justify-between pr-2">
+                        <span className="text-slate-500">Used PL :</span>
+                        <span className="font-black text-slate-950 font-mono">{leaveInfo.usedPl}</span>
+                      </div>
+                      <div className="flex justify-between pr-2">
+                        <span className="text-slate-500 font-bold">PL Balance :</span>
+                        <span className="font-black text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-100 font-mono">{leaveInfo.plBalance}</span>
+                      </div>
+                      <div className="flex justify-between pr-2">
+                        <span className="text-slate-500">Used SL :</span>
+                        <span className="font-black text-slate-950 font-mono">{leaveInfo.usedSl}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500 font-bold">SL Balance :</span>
+                        <span className="font-black text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-100 font-mono">{leaveInfo.slBalance}</span>
+                      </div>
+                    </div>
+                  </div>
 
+                  {/* Earnings, Actual, Payable vs Deductions Spreadsheets Grid */}
+                  <div className="border border-slate-950 rounded-xl overflow-hidden mb-5 select-all">
+                    {/* Header Columns */}
+                    <div className="grid grid-cols-12 bg-slate-100 border-b border-slate-950 text-[10px] font-black uppercase text-slate-900 text-center font-mono py-2.5">
+                      <div className="col-span-3 text-left pl-3">Earnings</div>
+                      <div className="col-span-2">Actual</div>
+                      <div className="col-span-2 border-r border-slate-950">Payable</div>
+                      <div className="col-span-3 text-left pl-3">Deductions</div>
+                      <div className="col-span-2">Amount</div>
                     </div>
 
+                    {/* Row 1: Basic & P Tax */}
+                    <div className="grid grid-cols-12 text-xs font-semibold border-b border-slate-200 items-center">
+                      <div className="col-span-3 py-2.5 pl-3 border-r border-slate-100 text-slate-700">Basic :</div>
+                      <div className="col-span-2 text-center font-mono border-r border-slate-100 text-slate-500">{formatCurrency(actualBasic)}</div>
+                      <div className={`col-span-2 text-center font-mono border-r border-slate-950 text-slate-950 font-extrabold ${themeConfigs[payslipTheme].highlightBg}`}>{formatCurrency(payableBasic)}</div>
+                      <div className="col-span-3 py-2.5 pl-3 border-r border-slate-100 text-slate-700">P Tax :</div>
+                      <div className="col-span-2 text-center font-mono text-rose-700">{formatCurrency(finalPTax)}</div>
+                    </div>
+
+                    {/* Row 2: H R A & P.F */}
+                    <div className="grid grid-cols-12 text-xs font-semibold border-b border-slate-200 items-center">
+                      <div className="col-span-3 py-2.5 pl-3 border-r border-slate-100 text-slate-700">H R A :</div>
+                      <div className="col-span-2 text-center font-mono border-r border-slate-100 text-slate-500">{formatCurrency(actualHra)}</div>
+                      <div className={`col-span-2 text-center font-mono border-r border-slate-950 text-slate-950 font-extrabold ${themeConfigs[payslipTheme].highlightBg}`}>{formatCurrency(payableHra)}</div>
+                      <div className="col-span-3 py-2.5 pl-3 border-r border-slate-100 text-slate-700">P.F :</div>
+                      <div className="col-span-2 text-center font-mono text-rose-700">{formatCurrency(finalPf)}</div>
+                    </div>
+
+                    {/* Row 3: Convey. & ESI */}
+                    <div className="grid grid-cols-12 text-xs font-semibold border-b border-slate-200 items-center">
+                      <div className="col-span-3 py-2.5 pl-3 border-r border-slate-100 text-slate-700">Convey. :</div>
+                      <div className="col-span-2 text-center font-mono border-r border-slate-100 text-slate-500">{formatCurrency(actualConv)}</div>
+                      <div className={`col-span-2 text-center font-mono border-r border-slate-950 text-slate-950 font-extrabold ${themeConfigs[payslipTheme].highlightBg}`}>{formatCurrency(payableConv)}</div>
+                      <div className="col-span-3 py-2.5 pl-3 border-r border-slate-100 text-slate-700">ESI :</div>
+                      <div className="col-span-2 text-center font-mono text-rose-700">{formatCurrency(finalEsi)}</div>
+                    </div>
+
+                    {/* Row 4: Basic Arrear & Adv. */}
+                    <div className="grid grid-cols-12 text-xs font-semibold border-b border-slate-200 items-center">
+                      <div className="col-span-3 py-2.5 pl-3 border-r border-slate-100 text-slate-700">Basic Arrear :</div>
+                      <div className="col-span-2 text-center font-mono border-r border-slate-100 text-slate-300">₹0</div>
+                      <div className="col-span-2 text-center font-mono border-r border-slate-950 text-emerald-800 font-extrabold bg-emerald-50/20">{formatCurrency(basicArrear)}</div>
+                      <div className="col-span-3 py-2.5 pl-3 border-r border-slate-100 text-slate-700">Adv. :</div>
+                      <div className="col-span-2 text-center font-mono text-rose-700">{formatCurrency(advDeduction)}</div>
+                    </div>
+
+                    {/* Row 5: HRA Arrear & I. Tax */}
+                    <div className="grid grid-cols-12 text-xs font-semibold border-b border-slate-200 items-center">
+                      <div className="col-span-3 py-2.5 pl-3 border-r border-slate-100 text-slate-700">HRA Arrear :</div>
+                      <div className="col-span-2 text-center font-mono border-r border-slate-100 text-slate-300">₹0</div>
+                      <div className="col-span-2 text-center font-mono border-r border-slate-950 text-emerald-800 font-extrabold bg-emerald-50/20">{formatCurrency(hraArrear)}</div>
+                      <div className="col-span-3 py-2.5 pl-3 border-r border-slate-100 text-slate-700">I. Tax :</div>
+                      <div className="col-span-2 text-center font-mono text-rose-700">{formatCurrency(itaxDeduction)}</div>
+                    </div>
+
+                    {/* Row 6: Convey. Arrear & Others */}
+                    <div className="grid grid-cols-12 text-xs font-semibold items-center">
+                      <div className="col-span-3 py-2.5 pl-3 border-r border-slate-100 text-slate-700">Convey. Arrear :</div>
+                      <div className="col-span-2 text-center font-mono border-r border-slate-100 text-slate-300">₹0</div>
+                      <div className="col-span-2 text-center font-mono border-r border-slate-950 text-emerald-800 font-extrabold bg-emerald-50/20">{formatCurrency(convArrear)}</div>
+                      <div className="col-span-3 py-2.5 pl-3 border-r border-slate-100 text-slate-700">Others :</div>
+                      <div className="col-span-2 text-center font-mono text-rose-700">{formatCurrency(othersDeduction)}</div>
+                    </div>
                   </div>
 
                   {/* Summary Totals area */}
-                  <div className="bg-slate-900 text-white rounded-xl p-5 mb-6 grid grid-cols-1 sm:grid-cols-3 gap-6 text-center select-none">
-                    <div>
-                      <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider mb-0.5">Total Gross Remuneration</span>
-                      <span className="text-lg font-black tracking-tight block font-mono">{formatCurrency(finalGross)}</span>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5 text-xs font-extrabold">
+                    <div className="border border-slate-950 rounded-xl p-3 flex flex-col gap-2 bg-slate-50/50">
+                      <div className="flex justify-between items-center text-slate-700">
+                        <span>Total Pay :</span>
+                        <span className="font-mono">{formatCurrency(totalPay)}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-emerald-800 border-t border-slate-200 pt-2 font-black">
+                        <span>Gross Pay :</span>
+                        <span className="font-mono text-[13px]">{formatCurrency(grossPay)}</span>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider mb-0.5">Total Authorized Deductions</span>
-                      <span className="text-lg font-black tracking-tight block text-rose-300 font-mono">-{formatCurrency(finalDeductions)}</span>
-                    </div>
-                    <div className="bg-white/10 p-2 rounded-lg border border-white/15">
-                      <span className="text-[10px] text-indigo-200 block font-bold uppercase tracking-wider mb-0.5">NET TAKE-HOME DISBURSED</span>
-                      <span className="text-xl font-black tracking-tight block text-emerald-400 font-mono">{formatCurrency(finalNet)}</span>
+                    <div className="border border-slate-950 rounded-xl p-3 flex flex-col justify-center bg-slate-50/50">
+                      <div className="flex justify-between items-center text-rose-800 font-black">
+                        <span>Total Deduction :</span>
+                        <span className="font-mono text-[13px]">-{formatCurrency(totalDeductions)}</span>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Net Payable in words */}
-                  <div className="border-y border-dashed border-slate-200 py-3 mb-8 font-serif italic text-slate-700 text-center text-xs">
-                    <span className="text-[9px] font-black uppercase text-slate-400 block not-italic tracking-wider mb-1">Take-Home Amount in certified words:</span>
-                    "{numberToWords(finalNet)}"
+                   {/* Premium Net Take-Home Statement */}
+                  <div className={`border-2 border-slate-950 rounded-xl p-4 mb-6 ${themeConfigs[payslipTheme].netPayableBg} text-white flex flex-col md:flex-row justify-between items-center gap-4 shadow-sm select-all`}>
+                    <div className="text-center md:text-left">
+                      <span className={`text-[10px] ${themeConfigs[payslipTheme].netPayableTextLabel} block uppercase tracking-wider font-extrabold`}>
+                        Total Net Payable ₹
+                      </span>
+                      <span className="text-2xl font-black font-mono tracking-tight text-white block mt-0.5">
+                        {formatCurrency(totalNetPayable)}
+                      </span>
+                    </div>
+                    <div className="text-center md:text-right border-t md:border-t-0 md:border-l border-white/20 pt-3 md:pt-0 md:pl-5 flex-1 w-full">
+                      <span className="text-[9px] text-slate-300 block uppercase tracking-wider font-bold">
+                        Amount (In Words) INR:
+                      </span>
+                      <p className={`font-serif italic text-xs font-semibold ${themeConfigs[payslipTheme].netPayableTextWords} mt-1`}>
+                        "{numberToWords(totalNetPayable)}"
+                      </p>
+                    </div>
                   </div>
 
                   {/* Signatures region */}
                   <div className="grid grid-cols-2 gap-12 text-xs font-bold text-slate-700 mt-auto pt-16">
                     <div className="text-center">
-                      <div className="w-full border-t border-slate-300 pt-3">
+                      <div className="w-full border-t border-slate-400 pt-3">
                         <span>Staff Member Specimen Signature</span>
-                        <p className="text-[9px] text-slate-400 font-medium">Recipient acknowledgment receipt</p>
+                        <p className="text-[9px] text-slate-400 font-medium mt-0.5">Recipient acknowledgment receipt</p>
                       </div>
                     </div>
-                    <div className="text-center">
-                      <div className="w-full border-t border-slate-300 pt-3">
+                    <div className="text-center font-black">
+                      <div className="w-full border-t border-slate-400 pt-3">
                         <span>Executive Authorized Signatory</span>
-                        <p className="text-[9px] text-slate-400 font-medium">Yashoda Enterprise payroll division</p>
+                        <p className="text-[9px] text-slate-450 font-semibold mt-0.5">Yashoda Linen Yarn Limited payroll division</p>
                       </div>
                     </div>
                   </div>
