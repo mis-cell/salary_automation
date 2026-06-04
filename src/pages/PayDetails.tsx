@@ -70,53 +70,53 @@ interface ThemeStyles {
 
 const themeConfigs: Record<"classic" | "emerald" | "crimson" | "cobalt" | "mono", ThemeStyles> = {
   classic: {
-    label: "Corporate Slate",
-    colorHex: "#1e1b4b", // deep indigo-950
-    topAccent: "bg-indigo-950",
-    netPayableBg: "bg-indigo-950",
-    netPayableTextLabel: "text-indigo-200",
-    netPayableTextWords: "text-indigo-100",
-    payableDaysBadge: "text-indigo-700 bg-indigo-50 border-indigo-100",
-    highlightBg: "bg-indigo-50/25"
-  },
-  emerald: {
-    label: "Emerald Ledger",
-    colorHex: "#022c22", // deep emerald-950
-    topAccent: "bg-emerald-950",
-    netPayableBg: "bg-emerald-950",
-    netPayableTextLabel: "text-emerald-250",
-    netPayableTextWords: "text-emerald-50",
-    payableDaysBadge: "text-emerald-700 bg-emerald-50 border-emerald-100",
-    highlightBg: "bg-emerald-50/25"
-  },
-  crimson: {
-    label: "Executive Wine",
-    colorHex: "#4c0519", // deep rose-950
-    topAccent: "bg-rose-950",
-    netPayableBg: "bg-rose-950",
-    netPayableTextLabel: "text-rose-200",
-    netPayableTextWords: "text-rose-100",
-    payableDaysBadge: "text-rose-700 bg-rose-50 border-rose-100",
-    highlightBg: "bg-rose-50/25"
-  },
-  cobalt: {
-    label: "Modern Cobalt",
-    colorHex: "#172554", // deep blue-950
-    topAccent: "bg-blue-950",
-    netPayableBg: "bg-blue-950",
-    netPayableTextLabel: "text-blue-200",
-    netPayableTextWords: "text-blue-100",
-    payableDaysBadge: "text-blue-700 bg-blue-50 border-blue-100",
-    highlightBg: "bg-blue-50/25"
-  },
-  mono: {
-    label: "Carbon Print",
-    colorHex: "#0f172a", // slate-900
-    topAccent: "bg-slate-900",
-    netPayableBg: "bg-slate-900",
+    label: "Midnight Luxe",
+    colorHex: "#0e172c",
+    topAccent: "bg-[#0e172c]",
+    netPayableBg: "bg-[#0e172c]",
     netPayableTextLabel: "text-slate-300",
     netPayableTextWords: "text-slate-100",
-    payableDaysBadge: "text-slate-800 bg-slate-100 border-slate-350",
+    payableDaysBadge: "text-indigo-800 bg-indigo-50 border-indigo-100",
+    highlightBg: "bg-indigo-50/20"
+  },
+  emerald: {
+    label: "Sage & Spruce",
+    colorHex: "#064e3b",
+    topAccent: "bg-[#064e3b]",
+    netPayableBg: "bg-[#064e3b]",
+    netPayableTextLabel: "text-emerald-300",
+    netPayableTextWords: "text-emerald-100",
+    payableDaysBadge: "text-emerald-800 bg-emerald-50 border-emerald-100",
+    highlightBg: "bg-emerald-50/20"
+  },
+  crimson: {
+    label: "Burgundy Editorial",
+    colorHex: "#4c0519",
+    topAccent: "bg-[#4c0519]",
+    netPayableBg: "bg-[#4c0519]",
+    netPayableTextLabel: "text-rose-300",
+    netPayableTextWords: "text-rose-100",
+    payableDaysBadge: "text-rose-800 bg-rose-50 border-rose-100",
+    highlightBg: "bg-rose-50/20"
+  },
+  cobalt: {
+    label: "Terracotta Linen",
+    colorHex: "#7c2d12",
+    topAccent: "bg-[#7c2d12]",
+    netPayableBg: "bg-[#7c2d12]",
+    netPayableTextLabel: "text-amber-200",
+    netPayableTextWords: "text-orange-50",
+    payableDaysBadge: "text-amber-800 bg-amber-50 border-amber-150",
+    highlightBg: "bg-amber-50/20"
+  },
+  mono: {
+    label: "Carbon Minimal",
+    colorHex: "#1e293b",
+    topAccent: "bg-slate-800",
+    netPayableBg: "bg-slate-900",
+    netPayableTextLabel: "text-slate-400",
+    netPayableTextWords: "text-slate-200",
+    payableDaysBadge: "text-slate-800 bg-slate-100 border-slate-300",
     highlightBg: "bg-slate-100"
   }
 };
