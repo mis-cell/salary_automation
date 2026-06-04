@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { Loader2, Play, CheckCircle2, FileText, AlertCircle, ExternalLink, RefreshCw, Settings, Info, Keyboard } from "lucide-react";
-import { fetchEmployeeDetails, EmployeeRow, getSheetId, getAppsScriptUrl } from "../lib/googleSheetsService";
+import { Loader2, Play, CheckCircle2, FileText, AlertCircle, ExternalLink, RefreshCw, Settings, Info, Keyboard, Send, AppWindow } from "lucide-react";
+import { fetchEmployeeDetails, fetchLeaveBalances, EmployeeRow, LeaveBalanceRow, getSheetId, getAppsScriptUrl } from "../lib/googleSheetsService";
 import ConfirmDialog from "../components/ConfirmDialog";
 
 interface EditableRow {
@@ -22,6 +22,10 @@ interface EditableRow {
   itax: number;
   adv: number;
   oth: number;
+  openingPL: number;
+  openingSL: number;
+  takePL: number;
+  takeSL: number;
 }
 
 interface ProcessedRow {
@@ -68,10 +72,37 @@ export default function EnterSalary() {
       const activeList = data.filter(e => e.presentStatus === "ACTIVE" || e.presentStatus === "active");
       setMasterEmployees(activeList);
       
+      let leaveData: LeaveBalanceRow[] = [];
+      try {
+        leaveData = await fetchLeaveBalances();
+      } catch (err) {
+        console.warn("Leave balance fetch skipped or failed on EnterSalary:", err);
+      }
+
       // Map to editable rows immediately
       const initialRows = activeList.map(emp => {
         // Safe standard mappings
         const isConsolidated = emp.salaryType === "CONSOLIDATED";
+
+        const exactMatch = leaveData.find(
+          b => b.empCode === emp.empCode && 
+          b.month?.toLowerCase() === month.toLowerCase() && 
+          b.year === year
+        );
+        let opPL = emp.pl || 0;
+        let opSL = 8.5; // default
+        if (exactMatch) {
+          opPL = exactMatch.closingPL ?? exactMatch.openingPL ?? 0;
+          opSL = exactMatch.closingSL ?? exactMatch.openingSL ?? 0;
+        } else {
+          const empRecords = leaveData.filter(b => b.empCode === emp.empCode);
+          if (empRecords.length > 0) {
+            const latest = empRecords[empRecords.length - 1];
+            opPL = latest.closingPL ?? latest.openingPL ?? 0;
+            opSL = latest.closingSL ?? latest.openingSL ?? 0;
+          }
+        }
+
         return {
           serialNumber: emp.serialNumber,
           empCode: emp.empCode,
@@ -90,7 +121,11 @@ export default function EnterSalary() {
           esi: emp.esi || 0,
           itax: 0,
           adv: 0,
-          oth: 0
+          oth: 0,
+          openingPL: opPL,
+          openingSL: opSL,
+          takePL: 0,
+          takeSL: 0
         };
       });
       setRows(initialRows);
@@ -426,6 +461,7 @@ export default function EnterSalary() {
                           <span className="font-mono text-[10px] text-slate-500 bg-slate-100 rounded px-1.5 py-0.5">{r.empCode}</span>
                           <span className="text-[10px] text-slate-500 font-medium">{r.designation}</span>
                         </div>
+                        
                         <div className="flex items-center gap-2 mt-2">
                           <label className="text-[10px] text-slate-400 font-bold uppercase">Present Days:</label>
                           <input 
@@ -436,6 +472,43 @@ export default function EnterSalary() {
                             onChange={(e) => updateRowField(r.empCode, "payableDays", Number(e.target.value) || 0)}
                             className="w-11 px-1 py-0.5 text-center text-[11px] font-bold text-slate-950 bg-slate-50 border border-slate-200 rounded-md focus:border-indigo-400 focus:bg-white outline-none"
                           />
+                        </div>
+
+                        {/* Interactive PL and SL leave and balance tracker */}
+                        <div className="mt-2.5 pt-2 border-t border-dashed border-slate-205 flex flex-col gap-1.5">
+                          <div className="flex gap-2 items-center justify-between text-[9px] text-slate-500 font-bold">
+                            <span className="flex items-center gap-1">
+                              Bal PL: <span className="font-extrabold text-emerald-700 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-100 font-mono">{Math.max(0, (r.openingPL ?? 0) - (r.takePL ?? 0))}</span>
+                            </span>
+                            <span className="flex items-center gap-1">
+                              Bal SL: <span className="font-extrabold text-amber-800 bg-amber-50 px-1 py-0.2 rounded border border-amber-100 font-mono">{Math.max(0, (r.openingSL ?? 0) - (r.takeSL ?? 0))}</span>
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="flex items-center gap-1">
+                              <span className="text-[9px] text-slate-400 font-extrabold uppercase shrink-0">Take PL:</span>
+                              <input 
+                                type="number" 
+                                min="0"
+                                max={r.openingPL ?? 30}
+                                value={r.takePL} 
+                                onChange={(e) => updateRowField(r.empCode, "takePL", Math.max(0, Number(e.target.value) || 0))}
+                                className="w-full px-1 py-0.2 text-center text-[10px] font-black text-slate-950 bg-slate-50 border border-slate-200 rounded outline-none focus:border-indigo-400 focus:bg-white"
+                              />
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <span className="text-[9px] text-slate-400 font-extrabold uppercase shrink-0">Take SL:</span>
+                              <input 
+                                type="number" 
+                                min="0"
+                                max={r.openingSL ?? 30}
+                                value={r.takeSL} 
+                                onChange={(e) => updateRowField(r.empCode, "takeSL", Math.max(0, Number(e.target.value) || 0))}
+                                className="w-full px-1 py-0.2 text-center text-[10px] font-black text-slate-950 bg-slate-50 border border-slate-200 rounded outline-none focus:border-indigo-400 focus:bg-white"
+                              />
+                            </div>
+                          </div>
                         </div>
                       </td>
 
@@ -694,14 +767,37 @@ export default function EnterSalary() {
                       <td className="py-3.5 px-4 text-center text-emerald-800 font-bold">{formatCurrency(row.netPay)}</td>
                       <td className="py-3.5 px-4 text-right">
                         {row.pdfUrl && row.pdfUrl.startsWith("http") ? (
-                          <a 
-                            href={row.pdfUrl} 
-                            target="_blank" 
-                            rel="noreferrer" 
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg inline-flex items-center gap-1 shadow-sm transition-all"
-                          >
-                            Download <ExternalLink className="w-3.5 h-3.5" />
-                          </a>
+                          <div className="flex gap-2 justify-end items-center">
+                            <a 
+                              href={row.pdfUrl} 
+                              target="_blank" 
+                              rel="noreferrer" 
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold px-2.5 py-1.5 rounded-lg inline-flex items-center gap-1 shadow-sm transition-all"
+                            >
+                              Download <ExternalLink className="w-3.5 h-3.5" />
+                            </a>
+                            <button
+                              onClick={() => {
+                                const waMsg = `Hello ${row.name},\n\nYour Yashoda Linen Yarn Ltd payslip for ${month} ${year} has been successfully generated.\n\nNet Disbursed: ${formatCurrency(row.netPay)}\n\nDownload PDF Payslip:\n${row.pdfUrl}\n\nThank you.\nHR Operations`;
+                                window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(waMsg)}`, "_blank");
+                              }}
+                              className="bg-emerald-500 hover:bg-emerald-600 text-white text-[11px] font-bold px-2.5 py-1.5 rounded-lg inline-flex items-center gap-1 shadow-sm transition-all cursor-pointer"
+                              title="Send via WhatsApp"
+                            >
+                              <Send className="w-3 h-3 text-white fill-white" />
+                              <span>WhatsApp</span>
+                            </button>
+                            <a
+                              href={`mailto:?subject=Yashoda Payslip for ${month} ${year}&body=${encodeURIComponent(
+                                `Dear ${row.name},\n\nPlease find the generated link for your payslip for the month of ${month} ${year}.\n\nNet Pay Details: ${formatCurrency(row.netPay)}\nPayslip Document Link: ${row.pdfUrl}\n\nWarm regards,\nHR Department`
+                              )}`}
+                              className="bg-sky-600 hover:bg-sky-700 text-white text-[11px] font-bold px-2.5 py-1.5 rounded-lg inline-flex items-center gap-1 shadow-sm transition-all"
+                              title="Send via Email"
+                            >
+                              <FileText className="w-3 h-3 text-white fill-white" />
+                              <span>Email</span>
+                            </a>
+                          </div>
                         ) : (
                           <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-1 rounded inline-block">Generating in Drive...</span>
                         )}

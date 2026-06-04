@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "../lib/AuthContext";
 import { fetchEmployeeDetails, fetchLeaveBalances, EmployeeRow, LeaveBalanceRow } from "../lib/googleSheetsService";
-import { FileText, Printer, AlertCircle, Loader2, IndianRupee, Search, ChevronRight, Check, X, ShieldAlert, ArrowUpDown, ArrowUp, ArrowDown, Palette } from "lucide-react";
+import { FileText, Printer, AlertCircle, Loader2, IndianRupee, Search, ChevronRight, Check, X, ShieldAlert, ArrowUpDown, ArrowUp, ArrowDown, Palette, Send, Mail } from "lucide-react";
 
 // Robust Indian currency translation to text format
 function numberToWords(num: number): string {
@@ -774,13 +774,36 @@ export default function PayDetails() {
                       })}
                     </div>
                   </div>
-                  <button
-                    onClick={handlePrint}
-                    className="w-full sm:w-auto bg-white hover:bg-slate-100 text-slate-955 border border-transparent hover:border-slate-300 px-4 py-2 rounded-lg text-xs font-black flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-95 cursor-pointer shrink-0"
-                  >
-                    <Printer className="w-3.5 h-3.5" />
-                    <span>Print Salary Slip</span>
-                  </button>
+                  <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+                    <button
+                      onClick={handlePrint}
+                      className="bg-white hover:bg-slate-100 text-slate-950 border border-transparent hover:border-slate-300 px-3.5 py-2 rounded-lg text-xs font-black flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-95 cursor-pointer shrink-0"
+                    >
+                      <Printer className="w-3.5 h-3.5" />
+                      <span>Print Slip</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        const waMsg = `Hello ${selectedSlipEmp.name},\n\nYour Yashoda Linen Yarn Ltd payslip for ${slipMonth} ${slipYear} has been generated.\n\nNet Disbursed: ${formatCurrency(totalNetPayable)}\n\nThank you.\nHR Operations`;
+                        window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(waMsg)}`, "_blank");
+                      }}
+                      className="bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-2 rounded-lg text-xs font-black flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-95 cursor-pointer shrink-0"
+                      title="Send details on WhatsApp"
+                    >
+                      <Send className="w-3.5 h-3.5 text-white fill-white" />
+                      <span>WhatsApp info</span>
+                    </button>
+                    <a
+                      href={`mailto:?subject=Yashoda Payslip for ${slipMonth} ${slipYear}&body=${encodeURIComponent(
+                        `Dear ${selectedSlipEmp.name},\n\nPlease find the generated details for your payslip for the month of ${slipMonth} ${slipYear}.\n\nNet Pay Details: ${formatCurrency(totalNetPayable)}\n\nWarm regards,\nHR Department`
+                      )}`}
+                      className="bg-sky-600 hover:bg-sky-700 text-white px-3.5 py-2 rounded-lg text-xs font-black flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-95"
+                      title="Send via Email"
+                    >
+                      <Mail className="w-3.5 h-3.5 text-white" />
+                      <span>Email info</span>
+                    </a>
+                  </div>
                 </div>
 
                 {/* Corporate standard Salary Slip Document card */}
