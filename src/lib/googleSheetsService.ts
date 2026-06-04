@@ -45,6 +45,19 @@ export interface DashboardSummaryRow {
   status: string;
 }
 
+// Safe string parser to filter undefined, null, or 'null' literals
+const safeStr = (val: any): string => {
+  if (val === null || val === undefined) return '';
+  const str = String(val).trim();
+  if (str === 'undefined' || str === 'null') return '';
+  return str;
+};
+
+// Safe uppercase helper
+const safeStrUpper = (val: any): string => {
+  return safeStr(val).toUpperCase();
+};
+
 // Secure float helper
 const parseNum = (val: any): number => {
   if (val === null || val === undefined) return 0;
@@ -125,28 +138,30 @@ export async function fetchEmployeeDetails(): Promise<EmployeeRow[]> {
   if (rawRows.length === 0) return [];
   // Skip header row
   const rows = rawRows.slice(1);
-  return rows.map((row) => ({
-    serialNumber: row[0] !== null ? String(row[0]).trim() : '',
-    empCode: row[1] !== null ? String(row[1]).trim() : '',
-    name: row[2] !== null ? String(row[2]).trim() : '',
-    salaryType: row[3] !== null ? String(row[3]).trim().toUpperCase() : '',
-    department: row[4] !== null ? String(row[4]).trim() : '',
-    designation: row[5] !== null ? String(row[5]).trim() : '',
-    presentStatus: row[6] !== null ? String(row[6]).trim().toUpperCase() : '',
-    doj: row[7] !== null ? String(row[7]).trim() : '',
-    basic: parseNum(row[8]),
-    hra: parseNum(row[9]),
-    conv: parseNum(row[10]),
-    grossSalary: parseNum(row[11]),
-    pf: parseNum(row[12]),
-    esi: parseNum(row[13]),
-    medi: parseNum(row[14]),
-    pl: parseNum(row[15]),
-    lta: parseNum(row[16]),
-    bonus: parseNum(row[17]),
-    gratuity: parseNum(row[18]),
-    ctcPerMonth: parseNum(row[19]),
-  }));
+  return rows
+    .map((row) => ({
+      serialNumber: safeStr(row[0]),
+      empCode: safeStr(row[1]),
+      name: safeStr(row[2]),
+      salaryType: safeStrUpper(row[3]),
+      department: safeStr(row[4]),
+      designation: safeStr(row[5]),
+      presentStatus: safeStrUpper(row[6]),
+      doj: safeStr(row[7]),
+      basic: parseNum(row[8]),
+      hra: parseNum(row[9]),
+      conv: parseNum(row[10]),
+      grossSalary: parseNum(row[11]),
+      pf: parseNum(row[12]),
+      esi: parseNum(row[13]),
+      medi: parseNum(row[14]),
+      pl: parseNum(row[15]),
+      lta: parseNum(row[16]),
+      bonus: parseNum(row[17]),
+      gratuity: parseNum(row[18]),
+      ctcPerMonth: parseNum(row[19]),
+    }))
+    .filter(emp => emp.empCode !== '' && emp.name !== ''); // Skip empty/metadata rows
 }
 
 /**
@@ -156,20 +171,22 @@ export async function fetchLeaveBalances(): Promise<LeaveBalanceRow[]> {
   const rawRows = await fetchSheetRows('leave_balance');
   if (rawRows.length === 0) return [];
   const rows = rawRows.slice(1);
-  return rows.map((row) => ({
-    empCode: row[0] !== null ? String(row[0]).trim() : '',
-    name: row[1] !== null ? String(row[1]).trim() : '',
-    month: row[2] !== null ? String(row[2]).trim() : '',
-    year: row[3] !== null ? String(row[3]).trim() : '',
-    openingPL: parseNum(row[4]),
-    openingSL: parseNum(row[5]),
-    creditedPL: parseNum(row[6]),
-    creditedSL: parseNum(row[7]),
-    usedPL: parseNum(row[8]),
-    usedSL: parseNum(row[9]),
-    closingPL: parseNum(row[10]),
-    closingSL: parseNum(row[11]),
-  }));
+  return rows
+    .map((row) => ({
+      empCode: safeStr(row[0]),
+      name: safeStr(row[1]),
+      month: safeStr(row[2]),
+      year: safeStr(row[3]),
+      openingPL: parseNum(row[4]),
+      openingSL: parseNum(row[5]),
+      creditedPL: parseNum(row[6]),
+      creditedSL: parseNum(row[7]),
+      usedPL: parseNum(row[8]),
+      usedSL: parseNum(row[9]),
+      closingPL: parseNum(row[10]),
+      closingSL: parseNum(row[11]),
+    }))
+    .filter(leave => leave.empCode !== '' && leave.name !== '');
 }
 
 /**
@@ -179,12 +196,14 @@ export async function fetchDashboardSummary(): Promise<DashboardSummaryRow[]> {
   const rawRows = await fetchSheetRows('dashboard_summary');
   if (rawRows.length === 0) return [];
   const rows = rawRows.slice(1);
-  return rows.map((row) => ({
-    month: row[0] !== null ? String(row[0]).trim() : '',
-    year: row[1] !== null ? String(row[1]).trim() : '',
-    totalPaid: parseNum(row[2]),
-    regularTotal: parseNum(row[3]),
-    consolidatedTotal: parseNum(row[4]),
-    status: row[5] !== null ? String(row[5]).trim() : '',
-  }));
+  return rows
+    .map((row) => ({
+      month: safeStr(row[0]),
+      year: safeStr(row[1]),
+      totalPaid: parseNum(row[2]),
+      regularTotal: parseNum(row[3]),
+      consolidatedTotal: parseNum(row[4]),
+      status: safeStr(row[5]),
+    }))
+    .filter(s => s.month !== '' && s.year !== '');
 }
