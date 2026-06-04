@@ -247,17 +247,17 @@ export default function PayDetails() {
       `}</style>
 
       {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-5 print:hidden">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200/80 pb-5 print:hidden">
         <div>
-          <h1 className="text-xl font-extrabold text-slate-950 tracking-tight">Pay Details & Salary Slips</h1>
-          <p className="text-slate-500 text-xs font-semibold mt-0.5">Generate corporate standard salary slips with live word translation and browser print automation.</p>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight font-display">Financial & Salary Directory</h1>
+          <p className="text-slate-500 text-sm mt-1 font-semibold">Generate corporate-standard salary slips with live Indian currency text-translation and print automations.</p>
         </div>
         <button 
           onClick={loadData}
-          className="px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold border border-slate-200 rounded-xl transition-all shadow-xs inline-flex items-center gap-1.5"
+          className="px-5 py-2.5 bg-[#0c1322] hover:bg-[#1a253d] text-white text-xs font-black rounded-2xl transition-all shadow-sm flex items-center gap-1.5 active:scale-95 cursor-pointer"
         >
           <Loader2 className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-          <span>Refresh Financials</span>
+          <span>Refresh Details</span>
         </button>
       </div>
 
@@ -278,8 +278,8 @@ export default function PayDetails() {
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
           
           {/* Left Panel: Employee picker list (xl:col-span-4) */}
-          <div className="xl:col-span-4 bg-white border border-slate-250 rounded-[24px] overflow-hidden flex flex-col shadow-xs print:hidden">
-            <div className="p-4 border-b border-slate-150 bg-slate-50/50">
+          <div className="xl:col-span-4 bg-white border border-slate-200 rounded-[24px] overflow-hidden flex flex-col shadow-premium print:hidden">
+            <div className="p-4 border-b border-slate-100 bg-slate-50/50">
               <span className="text-[10px] font-black text-slate-400 block uppercase tracking-wider mb-2.5">Staff Directory roster</span>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -288,7 +288,7 @@ export default function PayDetails() {
                   placeholder="Filter by name, serial code..." 
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 focus:border-slate-400 rounded-xl text-xs font-semibold outline-none transition-all shadow-xs"
+                  className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 focus:border-indigo-400 rounded-xl text-xs font-semibold outline-none transition-all shadow-xs focus:ring-4 focus:ring-indigo-50"
                 />
               </div>
             </div>
@@ -350,7 +350,7 @@ export default function PayDetails() {
                           <td className="py-2 px-3">
                             <div className="flex items-center gap-2">
                               <div className={`w-7 h-7 rounded-md flex items-center justify-center text-[10px] font-black border uppercase shrink-0 ${
-                                isSelected ? "bg-slate-900 border-slate-900 text-white" : "bg-slate-100 border-slate-150 text-slate-800"
+                                isSelected ? "bg-slate-900 border-slate-900 text-white" : "bg-slate-100 border-slate-200 text-slate-800"
                               }`}>
                                 {emp.name ? emp.name.split(' ').map((n: string) => n[0]).slice(0,2).join('') : '?'}
                               </div>
@@ -379,7 +379,7 @@ export default function PayDetails() {
           <div className="xl:col-span-8 flex flex-col gap-5">
             
             {/* Live Slips configuration controller */}
-            <div className="bg-white border border-slate-250 p-5 rounded-[24px] shadow-xs grid grid-cols-1 sm:grid-cols-4 gap-4 print:hidden">
+            <div className="bg-white border border-slate-200 p-5 rounded-[24px] shadow-premium grid grid-cols-1 sm:grid-cols-4 gap-4 print:hidden">
               <div>
                 <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">Salary Month Cycle</label>
                 <select 
@@ -576,7 +576,7 @@ export default function PayDetails() {
                           )}
                         </>
                       ) : (
-                        <div className="bg-slate-50 border border-slate-150 p-4 rounded-xl text-slate-500 font-medium">
+                        <div className="bg-slate-50 border border-slate-100 p-4 rounded-xl text-slate-500 font-medium">
                           Consolidated employees receive a fixed master sum rate: <strong className="text-slate-950 font-black">{formatCurrency(finalGross)}</strong>
                         </div>
                       )}
@@ -618,7 +618,7 @@ export default function PayDetails() {
                           )}
                         </>
                       ) : (
-                        <div className="bg-slate-50 border border-slate-150 p-4 rounded-xl text-slate-500 font-medium flex items-center gap-1.5">
+                        <div className="bg-slate-50 border border-slate-100 p-4 rounded-xl text-slate-500 font-medium flex items-center gap-1.5">
                           <span>Verified - Consolidated staff aren't subject to PF/ESI system deductions.</span>
                         </div>
                       )}
@@ -669,8 +669,8 @@ export default function PayDetails() {
 
               </div>
             ) : (
-              <div className="bg-white border border-slate-250 p-12 rounded-[24px] text-center text-slate-400 font-bold block">
-                Select an employee from the directory list on the left to review their corporate salary slip.
+              <div className="bg-white border border-slate-200 p-12 rounded-[24px] text-center text-slate-500 font-medium shadow-premium animate-in fade-in block">
+                Select an employee from the directory roster on the left to review, customize and print their certified payslip.
               </div>
             )}
 

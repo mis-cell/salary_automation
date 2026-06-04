@@ -460,7 +460,7 @@ export default function ManageEmployees() {
               To apply your web-created staff additions/edits directly into your spreadsheet:
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-              <div className="bg-white p-4 border border-slate-150 rounded-xl space-y-1.5">
+              <div className="bg-white p-4 border border-slate-200 rounded-xl space-y-1.5 shadow-xs">
                 <div className="font-extrabold text-slate-800 flex items-center gap-1">
                   1. Download CSV representation
                 </div>
@@ -469,14 +469,14 @@ export default function ManageEmployees() {
                 </p>
                 <button
                   onClick={handleCopySyncCode}
-                  className="mt-2 text-[11px] font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg flex items-center gap-1"
+                  className="mt-2 text-[11px] font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer"
                 >
                   {copiedText ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                   {copiedText ? "Copied Rows Data!" : "Copy Overrides CSV Rows to Clipboard"}
                 </button>
               </div>
 
-              <div className="bg-white p-4 border border-slate-150 rounded-xl space-y-1.5">
+              <div className="bg-white p-4 border border-slate-200 rounded-xl space-y-1.5 shadow-xs">
                 <div className="font-extrabold text-slate-800 flex items-center gap-1">
                   2. Double-Click Cell edit matches
                 </div>

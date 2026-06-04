@@ -98,17 +98,17 @@ export default function LeaveBalance() {
     <div className="flex flex-col gap-6 animate-in fade-in duration-200">
       
       {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-5">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200/80 pb-5">
         <div>
-          <h1 className="text-xl font-extrabold text-slate-950 tracking-tight">Leave Accruals & Booking Projections</h1>
-          <p className="text-slate-500 text-xs font-semibold mt-0.5">Verify historical leave closing states and simulate booking operations dynamically.</p>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight font-display">Leave & Accruals Directory</h1>
+          <p className="text-slate-500 text-sm mt-1 font-semibold">Verify historical leave positions, monthly credits, and simulate custom balance projections.</p>
         </div>
         <button 
           onClick={loadBalances}
           disabled={loading}
-          className="px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold border border-slate-200 rounded-xl transition-all shadow-xs disabled:opacity-50 flex items-center gap-1.5"
+          className="px-5 py-2.5 bg-[#0c1322] hover:bg-[#1a253d] text-white text-xs font-black rounded-2xl transition-all shadow-sm flex items-center gap-1.5 active:scale-95 disabled:opacity-50 cursor-pointer"
         >
-          {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+          {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin text-white" /> : <RefreshCw className="w-3.5 h-3.5" />}
           <span>Re-Sync Leave Ledger</span>
         </button>
       </div>
@@ -124,22 +124,22 @@ export default function LeaveBalance() {
       )}
 
       {/* Leaves Accruals Ledger - Full Width */}
-      <div className="w-full bg-white rounded-[24px] border border-slate-250 shadow-xs overflow-hidden flex flex-col min-w-0">
+      <div className="w-full bg-white rounded-[24px] border border-slate-200 shadow-premium overflow-hidden flex flex-col min-w-0">
           
-          <div className="p-5 border-b border-slate-150 bg-slate-50/70 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+          <div className="p-5 border-b border-slate-100 bg-slate-50/70 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
             <div className="flex items-start gap-3">
               <div className="mt-0.5 text-indigo-650 bg-indigo-50 border border-indigo-100 p-1.5 rounded-lg">
                 <Info className="w-4 h-4 text-indigo-600" />
               </div>
-              <div className="text-xs text-slate-600 leading-relaxed font-semibold">
+              <div className="text-xs text-slate-600 leading-relaxed font-medium">
                 <p className="font-extrabold text-slate-900">Standard Accrual Increments</p>
-                <p className="text-slate-500 font-medium text-[11px] mt-0.5">Active billing pipelines automatically allocate <strong className="text-indigo-600 font-bold bg-indigo-55 bg-indigo-50 px-1 py-0.5 rounded border border-indigo-100">+2.50 PL</strong> and <strong className="text-indigo-600 font-bold bg-indigo-50 px-1 py-0.5 rounded border border-indigo-100">+1.25 SL</strong> units each cycle.</p>
+                <p className="text-slate-500 font-medium text-[11px] mt-0.5">Active billing pipelines automatically allocate <strong className="text-indigo-600 font-bold bg-indigo-50 px-1 py-0.5 rounded border border-indigo-100">+2.50 PL</strong> and <strong className="text-indigo-600 font-bold bg-indigo-50 px-1 py-0.5 rounded border border-indigo-100">+1.25 SL</strong> units each cycle.</p>
               </div>
             </div>
           </div>
 
           {/* Search bar & filter selection */}
-          <div className="p-5 border-b border-slate-150 grid grid-cols-1 sm:grid-cols-4 gap-3 bg-white/50">
+          <div className="p-5 border-b border-slate-100 grid grid-cols-1 sm:grid-cols-4 gap-3 bg-white/50">
             <div className="relative sm:col-span-2">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input 
@@ -147,14 +147,14 @@ export default function LeaveBalance() {
                 placeholder="Find staff leave balance details..." 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 focus:border-slate-455 focus:border-slate-350 rounded-xl text-xs outline-none transition-all shadow-xs text-slate-950 font-semibold"
+                className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 focus:border-indigo-400 rounded-xl text-xs outline-none transition-all shadow-xs text-slate-950 font-semibold focus:ring-4 focus:ring-indigo-50 pointer-events-auto"
               />
             </div>
             <div>
               <select
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-slate-200 text-slate-800 text-xs font-bold rounded-xl outline-none transition-all shadow-xs cursor-pointer"
+                className="w-full px-3 py-2.5 bg-white border border-slate-200 text-slate-800 text-xs font-black rounded-xl outline-none transition-all shadow-xs cursor-pointer focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50"
               >
                 <option value="ALL">All Cycle Months</option>
                 {availableMonths.map(m => (
@@ -166,7 +166,7 @@ export default function LeaveBalance() {
               <select
                 value={selectedYear}
                 onChange={(e) => setSelectedYear(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-slate-200 text-slate-800 text-xs font-bold rounded-xl outline-none transition-all shadow-xs cursor-pointer"
+                className="w-full px-3 py-2.5 bg-white border border-slate-200 text-slate-800 text-xs font-black rounded-xl outline-none transition-all shadow-xs cursor-pointer focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50"
               >
                 <option value="ALL">All Cycle Years</option>
                 {availableYears.map(y => (

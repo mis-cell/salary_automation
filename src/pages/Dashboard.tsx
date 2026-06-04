@@ -55,14 +55,14 @@ export default function Dashboard() {
     <div className="flex flex-col gap-6 animate-in fade-in duration-200">
       
       {/* Visual Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200pb-5">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200/80 pb-5">
         <div>
-          <h1 className="text-2xl font-black text-slate-950 tracking-tight font-display">Financial Overview</h1>
-          <p className="text-slate-500 text-xs font-semibold mt-1">Real-time enterprise statistics and ledger ratios synced live from your spreadsheet.</p>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight font-display">Financial Analytics</h1>
+          <p className="text-slate-500 text-sm mt-1 font-semibold">Real-time enterprise statistics and ledger ratios synced live from your spreadsheet database.</p>
         </div>
-        <div className="flex items-center gap-2 self-start md:self-auto">
+        <div className="flex items-center gap-2 self-start md:self-auto bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-full shadow-xs">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span className="text-[10px] text-slate-500 font-extrabold uppercase tracking-wider">Live G-Sheets Link Live</span>
+          <span className="text-[10px] text-emerald-800 font-black uppercase tracking-wider">Live G-Sheets Connected</span>
         </div>
       </div>
 
@@ -78,68 +78,68 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             
             {/* Card 1 - Aggregate Payroll Container */}
-            <div className="bg-white p-6 rounded-[24px] border border-slate-200/80 hover:border-slate-300 transition-all duration-300 shadow-premium hover:shadow-premium-hover relative overflow-hidden group">
-              <div className="absolute top-0 left-0 right-0 h-1.5 bg-linear-to-r from-slate-950 via-indigo-950 to-slate-900"></div>
+            <div className="bg-white p-6 rounded-[24px] border border-slate-200 hover:border-indigo-200 transition-all duration-300 shadow-premium hover:shadow-premium-hover relative overflow-hidden group">
+              <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#0c1322] via-[#1e293b] to-indigo-900"></div>
               <div className="flex justify-between items-start">
-                <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-950 shadow-xs border border-slate-100">
+                <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-900 shadow-sm">
                   <DollarSign className="w-5 h-5 text-indigo-600" />
                 </div>
-                <span className="text-[9px] bg-slate-100/80 text-slate-500 font-black tracking-widest uppercase px-2 py-0.5 rounded-sm border border-slate-200/30">AGGREGATE MONTHLY</span>
+                <span className="text-[9px] bg-slate-100 text-slate-600 font-extrabold tracking-widest uppercase px-2.5 py-1 rounded-md border border-slate-200/50">AGGREGATE MONTHLY</span>
               </div>
               <div className="mt-5">
-                <span className="text-[11px] text-slate-400 font-extrabold block">Combined Gross Wages</span>
-                <span className="text-3xl font-black text-slate-950 tracking-tight block mt-0.5 font-display">{formatCurrency(totalMonthlyGrossSum)}</span>
+                <span className="text-xs text-slate-400 font-semibold block">Combined Gross Wages</span>
+                <span className="text-3xl font-extrabold text-slate-900 tracking-tight block mt-1 font-display">{formatCurrency(totalMonthlyGrossSum)}</span>
               </div>
               <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-[10px] text-slate-500 font-bold inline-flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse inline-block"></span>
+                <span className="text-[11px] text-slate-500 font-semibold inline-flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                   Active Roster Count ({activeEmployees.length} personnel)
                 </span>
-                <span className="text-[9px] text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded font-black uppercase tracking-wider">100% Workable</span>
+                <span className="text-[9px] text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-md font-black uppercase tracking-wider">100% Workable</span>
               </div>
             </div>
 
             {/* Card 2 - Regular Staff */}
-            <div className="bg-white p-6 rounded-[24px] border border-slate-200/80 hover:border-slate-300 transition-all duration-300 shadow-premium hover:shadow-premium-hover relative overflow-hidden group">
-              <div className="absolute top-0 left-0 right-0 h-1.5 bg-linear-to-r from-indigo-505 from-indigo-650 to-indigo-500"></div>
+            <div className="bg-white p-6 rounded-[24px] border border-slate-200 hover:border-indigo-200 transition-all duration-300 shadow-premium hover:shadow-premium-hover relative overflow-hidden group">
+              <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-indigo-950 via-indigo-600 to-indigo-450"></div>
               <div className="flex justify-between items-start">
-                <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-950 shadow-xs border border-slate-100">
+                <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-900 shadow-sm">
                   <Users className="w-5 h-5 text-indigo-600" />
                 </div>
-                <span className="text-[9px] bg-slate-100/80 text-slate-500 font-black tracking-widest uppercase px-2 py-0.5 rounded-sm border border-slate-200/30">REGULAR STAFF</span>
+                <span className="text-[9px] bg-slate-100 text-slate-600 font-extrabold tracking-widest uppercase px-2.5 py-1 rounded-md border border-slate-200/50">REGULAR STAFF</span>
               </div>
               <div className="mt-5">
-                <span className="text-[11px] text-slate-400 font-extrabold block">Standard Component CTC</span>
-                <span className="text-3xl font-black text-slate-950 tracking-tight block mt-0.5 font-display">{formatCurrency(totalRegularGross)}</span>
+                <span className="text-xs text-slate-400 font-semibold block">Standard Component CTC</span>
+                <span className="text-3xl font-extrabold text-slate-900 tracking-tight block mt-1 font-display">{formatCurrency(totalRegularGross)}</span>
               </div>
               <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-[10px] text-slate-500 font-bold">
+                <span className="text-[11px] text-slate-500 font-semibold">
                   {regularCount} Salary Records Mapped
                 </span>
-                <span className="text-[10px] text-indigo-650 bg-indigo-50 border border-indigo-100/50 px-2.5 py-0.5 rounded font-black font-mono">
+                <span className="text-[10px] text-indigo-800 bg-indigo-50 border border-indigo-100/50 px-2.5 py-0.5 rounded-md font-extrabold font-mono">
                   {totalMonthlyGrossSum > 0 ? ((totalRegularGross / totalMonthlyGrossSum) * 100).toFixed(0) : 0}% of budget
                 </span>
               </div>
             </div>
 
             {/* Card 3 - Consolidated Staff */}
-            <div className="bg-white p-6 rounded-[24px] border border-slate-200/80 hover:border-slate-300 transition-all duration-300 shadow-premium hover:shadow-premium-hover relative overflow-hidden group">
-              <div className="absolute top-0 left-0 right-0 h-1.5 bg-linear-to-r from-emerald-650 to-emerald-500"></div>
+            <div className="bg-white p-6 rounded-[24px] border border-slate-200 hover:border-emerald-250 transition-all duration-300 shadow-premium hover:shadow-premium-hover relative overflow-hidden group">
+              <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-800 via-emerald-600 to-emerald-400"></div>
               <div className="flex justify-between items-start">
-                <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-950 shadow-xs border border-slate-100">
-                  <Calendar className="w-5 h-5 text-emerald-600" />
+                <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-900 shadow-sm">
+                  <Calendar className="w-5 h-5 text-emerald-650" />
                 </div>
-                <span className="text-[9px] bg-slate-100/80 text-slate-500 font-black tracking-widest uppercase px-2 py-0.5 rounded-sm border border-slate-200/30">CONSOLIDATED STAFF</span>
+                <span className="text-[9px] bg-slate-100 text-slate-600 font-extrabold tracking-widest uppercase px-2.5 py-1 rounded-md border border-slate-200/50">CONSOLIDATED STAFF</span>
               </div>
               <div className="mt-5">
-                <span className="text-[11px] text-slate-400 font-extrabold block">Contract Consolidated CTC</span>
-                <span className="text-3xl font-black text-slate-950 tracking-tight block mt-0.5 font-display">{formatCurrency(totalConsolidatedGross)}</span>
+                <span className="text-xs text-slate-400 font-semibold block">Contract Consolidated CTC</span>
+                <span className="text-3xl font-extrabold text-slate-900 tracking-tight block mt-1 font-display">{formatCurrency(totalConsolidatedGross)}</span>
               </div>
               <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-[10px] text-slate-500 font-bold">
+                <span className="text-[11px] text-slate-500 font-semibold">
                   {consolidatedCount} Caretakers / Contractees
                 </span>
-                <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-100 px-2.5 py-0.5 rounded font-black font-mono">
+                <span className="text-[10px] text-emerald-800 bg-emerald-50 border border-emerald-100 px-2.5 py-0.5 rounded-md font-extrabold font-mono">
                   {totalMonthlyGrossSum > 0 ? ((totalConsolidatedGross / totalMonthlyGrossSum) * 100).toFixed(0) : 0}% of budget
                 </span>
               </div>

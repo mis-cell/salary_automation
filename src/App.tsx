@@ -18,18 +18,18 @@ const NavLink = ({ to, children, icon: Icon, mobile }: { to: string; children: R
     <Link
       to={to}
       className={`
-        relative px-4 py-2.5 rounded-xl flex items-center gap-2.5 text-sm font-medium transition-all duration-200
+        relative px-4 py-2.5 rounded-xl flex items-center gap-2.5 text-sm font-semibold transition-all duration-200
         ${mobile ? 'w-full mb-1 py-3 text-base' : ''}
         ${isActive 
-          ? 'bg-gradient-to-r from-slate-800 to-slate-900 text-white shadow-md shadow-slate-900/10' 
-          : 'text-slate-605 text-slate-500 hover:text-slate-900 hover:bg-slate-100/80'
+          ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/10' 
+          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
         }
       `}
     >
       {Icon && <Icon className={`w-4 h-4 transition-transform duration-200 ${isActive ? 'scale-105' : ''}`} />}
       <span className="tracking-wide font-sans">{children}</span>
       {isActive && !mobile && (
-        <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-white/30 rounded-full" />
+        <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-4 h-0.5 bg-white/40 rounded-full" />
       )}
     </Link>
   );
@@ -106,7 +106,7 @@ function AppContent() {
       <div className="fixed inset-0 bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:32px_32px] opacity-40 pointer-events-none" />
       
       {/* Header with advanced glassmorphism */}
-      <header className="sticky top-0 z-50 bg-white/85 backdrop-blur-xl border-b border-white/20 shadow-sm">
+      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200/60 shadow-xs">
         <div className="w-full px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 sm:h-20">
             {/* Enhanced Logo with gradient */}

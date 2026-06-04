@@ -6,9 +6,9 @@
   --font-display: "Outfit", sans-serif;
   --font-mono: "JetBrains Mono", monospace;
   
-  --shadow-premium: 0 4px 20px -2px rgba(15, 23, 42, 0.04), 0 12px 40px -4px rgba(15, 23, 42, 0.05), 0 0 0 1px rgba(15, 23, 42, 0.02);
-  --shadow-premium-hover: 0 10px 30px -4px rgba(15, 23, 42, 0.07), 0 20px 60px -8px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(15, 23, 42, 0.03);
-  --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.15);
+  --shadow-premium: 0 1px 3px 0 rgba(15, 23, 42, 0.03), 0 4px 12px 0 rgba(15, 23, 42, 0.04), 0 15px 35px -5px rgba(15, 23, 42, 0.06), 0 0 0 1px rgba(15, 23, 42, 0.015);
+  --shadow-premium-hover: 0 4px 6px 0 rgba(15, 23, 42, 0.04), 0 12px 24px 0 rgba(15, 23, 42, 0.05), 0 25px 50px -12px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(15, 23, 42, 0.025);
+  --shadow-glow: 0 0 24px rgba(99, 102, 241, 0.12);
 }
 
 /* Custom global styling improvements for a premium aesthetic */
@@ -16,7 +16,8 @@ body {
   font-family: var(--font-sans);
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  background-color: rgb(248, 250, 252);
+  background-color: #f8fafc;
+  color: #0f172a;
 }
 
 h1, h2, h3, .font-display {
@@ -25,6 +26,30 @@ h1, h2, h3, .font-display {
 
 .mono-data {
   font-family: var(--font-mono);
+}
+
+/* Elite Dashboard Animations and Utilities */
+.dashboard-card {
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: var(--shadow-premium);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dashboard-card:hover {
+  border-color: rgba(203, 213, 225, 0.9);
+  box-shadow: var(--shadow-premium-hover);
+  transform: translateY(-2px);
+}
+
+.custom-focus-input {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.custom-focus-input:focus {
+  border-color: #818cf8;
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(129, 140, 248, 0.12), var(--shadow-premium);
 }
 
 /* Custom elegant scrollbar styling */
@@ -46,4 +71,5 @@ h1, h2, h3, .font-display {
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
 
