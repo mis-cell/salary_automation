@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { Users, DollarSign, Calendar, TrendingUp, Loader2, CheckCircle, BarChart3, ArrowUpRight, Percent, Layers } from "lucide-react";
 import { fetchDashboardSummary, fetchEmployeeDetails, DashboardSummaryRow, EmployeeRow } from "../lib/googleSheetsService";
+import { useTheme } from "../lib/ThemeContext";
 
 export default function Dashboard() {
+  const { theme } = useTheme();
   const [employees, setEmployees] = useState<EmployeeRow[]>([]);
   const [summaryRows, setSummaryRows] = useState<DashboardSummaryRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,7 +70,7 @@ export default function Dashboard() {
 
       {loading ? (
         <div className="flex flex-col items-center justify-center p-24 bg-white border border-slate-200/80 rounded-[32px] shadow-premium">
-          <Loader2 className="w-8 h-8 text-indigo-600 animate-spin mb-4" />
+          <Loader2 className={`w-8 h-8 ${theme.accentText} animate-spin mb-4`} />
           <p className="text-slate-950 font-black text-sm tracking-tight">Syncing Active Spreadsheet Records...</p>
           <p className="text-slate-400 text-xs mt-1">Downloading master payroll rows and balance data</p>
         </div>
@@ -78,11 +80,11 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             
             {/* Card 1 - Aggregate Payroll Container */}
-            <div className="bg-white p-6 rounded-[24px] border border-slate-200 hover:border-indigo-200 transition-all duration-300 shadow-premium hover:shadow-premium-hover relative overflow-hidden group">
-              <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#0c1322] via-[#1e293b] to-indigo-900"></div>
+            <div className={`bg-white p-6 rounded-[24px] border border-slate-200 ${theme.accentBorderCard} transition-all duration-300 shadow-premium hover:shadow-premium-hover relative overflow-hidden group`}>
+              <div className="absolute top-0 left-0 right-0 h-1.5" style={{ backgroundColor: theme.colorHex }}></div>
               <div className="flex justify-between items-start">
                 <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-900 shadow-sm">
-                  <DollarSign className="w-5 h-5 text-indigo-600" />
+                  <DollarSign className={`w-5 h-5 ${theme.accentText}`} />
                 </div>
                 <span className="text-[9px] bg-slate-100 text-slate-600 font-extrabold tracking-widest uppercase px-2.5 py-1 rounded-md border border-slate-200/50">AGGREGATE MONTHLY</span>
               </div>
@@ -100,11 +102,11 @@ export default function Dashboard() {
             </div>
 
             {/* Card 2 - Regular Staff */}
-            <div className="bg-white p-6 rounded-[24px] border border-slate-200 hover:border-indigo-200 transition-all duration-300 shadow-premium hover:shadow-premium-hover relative overflow-hidden group">
-              <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-indigo-950 via-indigo-600 to-indigo-450"></div>
+            <div className={`bg-white p-6 rounded-[24px] border border-slate-200 ${theme.accentBorderCard} transition-all duration-300 shadow-premium hover:shadow-premium-hover relative overflow-hidden group`}>
+              <div className="absolute top-0 left-0 right-0 h-1.5" style={{ backgroundColor: theme.colorHex }}></div>
               <div className="flex justify-between items-start">
                 <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-900 shadow-sm">
-                  <Users className="w-5 h-5 text-indigo-600" />
+                  <Users className={`w-5 h-5 ${theme.accentText}`} />
                 </div>
                 <span className="text-[9px] bg-slate-100 text-slate-600 font-extrabold tracking-widest uppercase px-2.5 py-1 rounded-md border border-slate-200/50">REGULAR STAFF</span>
               </div>
@@ -116,7 +118,7 @@ export default function Dashboard() {
                 <span className="text-[11px] text-slate-500 font-semibold">
                   {regularCount} Salary Records Mapped
                 </span>
-                <span className="text-[10px] text-indigo-800 bg-indigo-50 border border-indigo-100/50 px-2.5 py-0.5 rounded-md font-extrabold font-mono">
+                <span className={`text-[10px] font-extrabold font-mono px-2.5 py-0.5 rounded-md ${theme.primaryBadge}`}>
                   {totalMonthlyGrossSum > 0 ? ((totalRegularGross / totalMonthlyGrossSum) * 100).toFixed(0) : 0}% of budget
                 </span>
               </div>
@@ -225,14 +227,14 @@ export default function Dashboard() {
                     <div className="space-y-1">
                       <div className="flex justify-between items-center text-[11px] font-bold">
                         <span className="text-slate-800">Regular Payroll CTC</span>
-                        <span className="text-slate-950 font-black">
+                        <span className={`font-black ${theme.accentText}`}>
                           {((totalRegularGross / totalMonthlyGrossSum) * 100).toFixed(1)}%
                         </span>
                       </div>
                       <div className="w-full h-3 bg-slate-100 rounded-lg overflow-hidden">
                         <div 
-                          className="h-full bg-slate-900 rounded-lg transition-all duration-300" 
-                          style={{ width: `${(totalRegularGross / totalMonthlyGrossSum) * 100}%` }}
+                          className="h-full rounded-lg transition-all duration-300" 
+                          style={{ width: `${(totalRegularGross / totalMonthlyGrossSum) * 100}%`, backgroundColor: theme.colorHex }}
                         ></div>
                       </div>
                       <div className="flex justify-between text-[10px] text-slate-400 font-extrabold">
