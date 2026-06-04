@@ -1,0 +1,6 @@
+{
+  "name": "AutoPay",
+  "description": "Professional payslip generation application with Google Workspace integration.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
