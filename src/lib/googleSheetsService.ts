@@ -84,6 +84,36 @@ export function setSheetId(id: string) {
   }
 }
 
+// Local Overrides & Merging Setup
+const EMPLOYEES_OVERRIDE_KEY = 'YASHODA_EMPLOYEES_OVERRIDE';
+const EMPLOYEES_DELETED_KEY = 'YASHODA_EMPLOYEES_DELETED';
+
+export function getLocalEmployees(): EmployeeRow[] {
+  try {
+    const list = localStorage.getItem(EMPLOYEES_OVERRIDE_KEY);
+    return list ? JSON.parse(list) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+export function saveLocalEmployees(list: EmployeeRow[]) {
+  localStorage.setItem(EMPLOYEES_OVERRIDE_KEY, JSON.stringify(list));
+}
+
+export function getDeletedEmpCodes(): string[] {
+  try {
+    const list = localStorage.getItem(EMPLOYEES_DELETED_KEY);
+    return list ? JSON.parse(list) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+export function saveDeletedEmpCodes(codes: string[]) {
+  localStorage.setItem(EMPLOYEES_DELETED_KEY, JSON.stringify(codes));
+}
+
 /**
  * Universal Gviz Google Sheets reader
  */
@@ -134,34 +164,61 @@ async function fetchSheetRows(sheetName: string): Promise<any[][]> {
  * Fetch employee details
  */
 export async function fetchEmployeeDetails(): Promise<EmployeeRow[]> {
-  const rawRows = await fetchSheetRows('emp_details');
-  if (rawRows.length === 0) return [];
-  // Skip header row
-  const rows = rawRows.slice(1);
-  return rows
-    .map((row) => ({
-      serialNumber: safeStr(row[0]),
-      empCode: safeStr(row[1]),
-      name: safeStr(row[2]),
-      salaryType: safeStrUpper(row[3]),
-      department: safeStr(row[4]),
-      designation: safeStr(row[5]),
-      presentStatus: safeStrUpper(row[6]),
-      doj: safeStr(row[7]),
-      basic: parseNum(row[8]),
-      hra: parseNum(row[9]),
-      conv: parseNum(row[10]),
-      grossSalary: parseNum(row[11]),
-      pf: parseNum(row[12]),
-      esi: parseNum(row[13]),
-      medi: parseNum(row[14]),
-      pl: parseNum(row[15]),
-      lta: parseNum(row[16]),
-      bonus: parseNum(row[17]),
-      gratuity: parseNum(row[18]),
-      ctcPerMonth: parseNum(row[19]),
-    }))
-    .filter(emp => emp.empCode !== '' && emp.name !== ''); // Skip empty/metadata rows
+  let sheetEmployees: EmployeeRow[] = [];
+  try {
+    const rawRows = await fetchSheetRows('emp_details');
+    if (rawRows.length > 0) {
+      const rows = rawRows.slice(1);
+      sheetEmployees = rows
+        .map((row) => ({
+          serialNumber: safeStr(row[0]),
+          empCode: safeStr(row[1]),
+          name: safeStr(row[2]),
+          salaryType: safeStrUpper(row[3]),
+          department: safeStr(row[4]),
+          designation: safeStr(row[5]),
+          presentStatus: safeStrUpper(row[6]),
+          doj: safeStr(row[7]),
+          basic: parseNum(row[8]),
+          hra: parseNum(row[9]),
+          conv: parseNum(row[10]),
+          grossSalary: parseNum(row[11]),
+          pf: parseNum(row[12]),
+          esi: parseNum(row[13]),
+          medi: parseNum(row[14]),
+          pl: parseNum(row[15]),
+          lta: parseNum(row[16]),
+          bonus: parseNum(row[17]),
+          gratuity: parseNum(row[18]),
+          ctcPerMonth: parseNum(row[19]),
+        }))
+        .filter(emp => emp.empCode !== '' && emp.name !== '');
+    }
+  } catch (err) {
+    console.warn("Failed to fetch Google Sheet 'emp_details'. Using local overrides.", err);
+  }
+
+  // Retrieve current client-side updates
+  const localList = getLocalEmployees();
+  const deletedCodes = getDeletedEmpCodes();
+
+  // 1. Remove deleted codes from our base roster
+  let combined = sheetEmployees.filter(emp => !deletedCodes.includes(emp.empCode));
+
+  // 2. Overwrite sheet records with modified values if match found
+  combined = combined.map(emp => {
+    const localMatch = localList.find(le => le.empCode === emp.empCode);
+    return localMatch ? localMatch : emp;
+  });
+
+  // 3. Append brand new items that are not in the spreadsheet but saved locally
+  localList.forEach(le => {
+    if (!combined.some(emp => emp.empCode === le.empCode) && !deletedCodes.includes(le.empCode)) {
+      combined.push(le);
+    }
+  });
+
+  return combined;
 }
 
 /**

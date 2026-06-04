@@ -60,17 +60,6 @@ export default function Dashboard() {
           <h1 className="text-xl font-extrabold text-slate-950 tracking-tight">Financial Overview</h1>
           <p className="text-slate-500 text-xs font-semibold mt-0.5">Real-time stats and ledger ratios synced live from your configured spreadsheet tables.</p>
         </div>
-        
-        <div className="flex items-center gap-2">
-          <button 
-            onClick={loadData}
-            disabled={loading}
-            className="px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl transition-all border border-slate-200 inline-flex items-center gap-1.5 shadow-xs"
-          >
-            {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <TrendingUp className="w-3.5 h-3.5 text-slate-500" />}
-            <span>Sync Ledger Metrics</span>
-          </button>
-        </div>
       </div>
 
       {loading ? (
