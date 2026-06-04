@@ -62,6 +62,23 @@ export default function EnterSalary() {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [results, setResults] = useState<ProcessedRow[]>([]);
   const [notification, setNotification] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
+  const [localChangesCount, setLocalChangesCount] = useState(0);
+
+  const calculateChangeStats = () => {
+    try {
+      const edits = localStorage.getItem("YASHODA_EMPLOYEES_OVERRIDE");
+      const dels = localStorage.getItem("YASHODA_EMPLOYEES_DELETED");
+      const editsCount = edits ? JSON.parse(edits).length : 0;
+      const delsCount = dels ? JSON.parse(dels).length : 0;
+      setLocalChangesCount(editsCount + delsCount);
+    } catch {
+      setLocalChangesCount(0);
+    }
+  };
+
+  useEffect(() => {
+    calculateChangeStats();
+  }, [rows]);
 
   // Load masters for active preview
   const loadMasterList = async () => {
@@ -288,9 +305,39 @@ export default function EnterSalary() {
       {/* Main Container Card */}
       <div className="bg-white rounded-[32px] border border-slate-200/80 shadow-[0_12px_44px_-16px_rgba(40,20,90,0.08)] overflow-hidden flex flex-col">
         
+        {localChangesCount > 0 && (
+          <div className="bg-amber-50 border-b border-amber-200 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-amber-900 transition-all">
+            <div className="flex items-center gap-2.5">
+              <span className="p-1.5 bg-amber-100 text-amber-800 rounded-lg shrink-0">
+                <AlertCircle className="w-5 h-5 text-amber-750" />
+              </span>
+              <div>
+                <p className="text-xs font-black uppercase tracking-wider text-amber-800">Browser local edits are active</p>
+                <p className="text-[11px] font-semibold text-amber-700/95 mt-0.5 leading-relaxed">
+                  You have <strong>{localChangesCount} local roster changes (browser-level edits or deleted templates)</strong> which are overriding live spreadsheet updates. If your data does not perfectly match the google sheet, click the button below to restore native 1:1 synchronization.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm("Are you sure you want to discard your local edits? This will sync your master personnel records 100% directly with your live Google Sheet columns.")) {
+                  localStorage.removeItem("YASHODA_EMPLOYEES_OVERRIDE");
+                  localStorage.removeItem("YASHODA_EMPLOYEES_DELETED");
+                  loadMasterList();
+                  setLocalChangesCount(0);
+                }
+              }}
+              className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-black rounded-xl transition-all shadow-sm shrink-0 active:scale-95 cursor-pointer"
+            >
+              Clear Local Edits & Sync Live Sheet
+            </button>
+          </div>
+        )}
+
         {/* Form controls */}
         <form onSubmit={handleProcess} className="p-7 border-b border-slate-100 flex flex-col xl:flex-row justify-between xl:items-end gap-6 bg-slate-50/70">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-5 flex-1">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 flex-1">
             <div className="space-y-1.5">
               <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block ml-1">Payroll Month</label>
               <select 
@@ -332,18 +379,6 @@ export default function EnterSalary() {
                 value={defaultPayableDays} 
                 onChange={e=>setDefaultPayableDays(Number(e.target.value) || 26)} 
                 className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-950 bg-white shadow-sm outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all font-semibold" 
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block ml-1">Google Apps Script Webhook URL</label>
-              <input 
-                type="url" 
-                required 
-                value={scriptUrl} 
-                onChange={e=>setScriptUrl(e.target.value)} 
-                className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-xs font-semibold text-slate-900 bg-white shadow-sm outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all placeholder:text-slate-300 text-slate-950" 
-                placeholder="https://script.google.com/macros/s/..." 
               />
             </div>
           </div>

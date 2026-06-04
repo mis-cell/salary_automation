@@ -353,13 +353,25 @@ export default function PayDetails() {
       };
     }
 
-    const empRecords = leaveBalances.filter(b => b.empCode === selectedSlipEmp.empCode);
+    const monthsOrder = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
+    const empRecords = leaveBalances
+      .filter(b => b.empCode === selectedSlipEmp.empCode)
+      .sort((a, b) => {
+        const yearA = parseInt(a.year) || 0;
+        const yearB = parseInt(b.year) || 0;
+        if (yearA !== yearB) return yearA - yearB;
+        
+        const monthA = monthsOrder.indexOf(a.month?.toLowerCase() || "");
+        const monthB = monthsOrder.indexOf(b.month?.toLowerCase() || "");
+        return monthA - monthB;
+      });
+
     if (empRecords.length > 0) {
       const latest = empRecords[empRecords.length - 1];
       return {
-        usedPl: latest.closingPL || 0,
+        usedPl: latest.usedPL || 0,
         plBalance: latest.closingPL ?? latest.openingPL ?? 0,
-        usedSl: latest.closingSL || 0,
+        usedSl: latest.usedSL || 0,
         slBalance: latest.closingSL ?? latest.openingSL ?? 0
       };
     }

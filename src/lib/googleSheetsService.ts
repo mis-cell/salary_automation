@@ -190,7 +190,7 @@ export async function fetchEmployeeDetails(): Promise<EmployeeRow[]> {
           serialNumber: safeStr(row[0]),
           empCode: safeStr(row[1]),
           name: safeStr(row[2]),
-          salaryType: safeStrUpper(row[3]),
+          salaryType: safeStrUpper(row[3]) === "COSOLIDATED" ? "CONSOLIDATED" : safeStrUpper(row[3]),
           department: safeStr(row[4]),
           designation: safeStr(row[5]),
           presentStatus: safeStrUpper(row[6]),
