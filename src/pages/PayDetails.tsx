@@ -13,28 +13,12 @@ export default function PayDetails() {
     setLoading(true);
     setError(null);
     try {
-      if (accessToken && accessToken !== 'mock_google_sheets_token') {
-        const data = await fetchEmployeeDetails(accessToken);
-        setEmployees(data);
-      } else {
-        // Mock data to demonstrate the UI when no real token is present
-        // since the user didn't fully complete OAuth or we are using mock login.
-        setTimeout(() => {
-          setEmployees([
-            { serialNumber: "1", empCode: "EM101", name: "John Doe", salaryType: "REGULAR", department: "Engineering", designation: "Senior Developer", presentStatus: "ACTIVE", doj: "01/01/2023", basic: 40000, hra: 16000, conv: 3200, grossSalary: 59200, pf: 1800, esi: 0, medi: 1000, pl: 0, lta: 2000, bonus: 0, gratuity: 1000, ctcPerMonth: 65000 },
-            { serialNumber: "2", empCode: "EM102", name: "Jane Smith", salaryType: "REGULAR", department: "Design", designation: "UX Designer", presentStatus: "ACTIVE", doj: "15/03/2023", basic: 35000, hra: 14000, conv: 3200, grossSalary: 52200, pf: 1800, esi: 0, medi: 1000, pl: 0, lta: 2000, bonus: 0, gratuity: 1000, ctcPerMonth: 58000 },
-            { serialNumber: "3", empCode: "EM103", name: "Mike Johnson", salaryType: "CONSOLIDATED", department: "Marketing", designation: "Content Strategist", presentStatus: "ACTIVE", doj: "10/06/2024", basic: 0, hra: 0, conv: 0, grossSalary: 45000, pf: 0, esi: 0, medi: 0, pl: 0, lta: 0, bonus: 0, gratuity: 0, ctcPerMonth: 45000 },
-          ]);
-          setLoading(false);
-        }, 800);
-        return;
-      }
+      const data = await fetchEmployeeDetails();
+      setEmployees(data);
     } catch (err: any) {
-      setError(err.message || "Failed to fetch data.");
+      setError(err.message || "Failed to fetch live employee pay details.");
     } finally {
-      if (accessToken && accessToken !== 'mock_google_sheets_token') {
-        setLoading(false);
-      }
+      setLoading(false);
     }
   };
 
