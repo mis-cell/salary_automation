@@ -3,7 +3,7 @@ import { Send, Loader2, Play, CheckCircle2 } from "lucide-react";
 
 export default function EnterSalary() {
   const [loading, setLoading] = useState(false);
-  const [scriptUrl, setScriptUrl] = useState("https://script.google.com/macros/s/..."); // Placeholder for user
+  const [scriptUrl, setScriptUrl] = useState("https://script.google.com/macros/s/AKfycbzsukRpBdg828rZI0YrgIaxs3Bh6VPl33dlMmRm0Vt3FsabaNZfavTUTzns3WayYTXR/exec"); // Default Apps Script Web App
   const [month, setMonth] = useState("June");
   const [year, setYear] = useState("2026");
 
