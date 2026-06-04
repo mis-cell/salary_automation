@@ -380,23 +380,62 @@ export default function PayDetails() {
       {/* Hide surrounding app elements on print mode */}
       <style>{`
         @media print {
-          body * {
-            visibility: hidden;
+          /* Hide all surrounding app chrome, header, sidebar, lists, inputs, and helpers */
+          header, nav, aside, footer, button, input, select, .print\\:hidden, [class*="print:hidden"], #connection-settings-modal {
+            display: none !important;
+          }
+          
+          /* Hide left employee directory listing column wholly */
+          .xl\\:col-span-4 {
+            display: none !important;
+          }
+          
+          /* Expand the right payslip container to take full width */
+          .xl\\:col-span-8 {
+            width: 100% !important;
+            max-width: 100% !important;
+            flex: none !important;
+            display: block !important;
+          }
+
+          /* Force ancestors to display normally with no height or clipping limits */
+          html, body, #root, #root > div, main, .min-h-screen {
+            display: block !important;
+            overflow: visible !important;
+            position: relative !important;
+            height: auto !important;
+            min-height: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: none !important;
+            background: white !important;
+            background-image: none !important;
+            box-shadow: none !important;
+          }
+
+          /* Corporate standard document card - exact A4 aspect styling */
+          #printable-payslip {
+            visibility: visible !important;
+            display: block !important;
+            border: 2px solid #000000 !important;
+            border-radius: 12px !important;
+            padding: 32px !important;
+            margin: 0 auto !important;
+            width: 100% !important;
+            max-width: 800px !important;
+            box-shadow: none !important;
+            background: #ffffff !important;
+            color: #000000 !important;
+            position: relative !important;
+            font-family: Inter, ui-sans-serif, system-ui, sans-serif !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
-          #printable-payslip, #printable-payslip * {
-            visibility: visible;
-          }
-          #printable-payslip {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            border: none !important;
-            box-shadow: none !important;
-            padding: 0 !important;
-            margin: 0 !important;
+
+          /* Ensure all background fills in badges, headers display properly when printing */
+          * {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
