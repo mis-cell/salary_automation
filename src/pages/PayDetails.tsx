@@ -63,6 +63,9 @@ export default function PayDetails() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
+  // Record map of status for each employee's payslip
+  const [payslipStatuses, setPayslipStatuses] = useState<Record<string, "Processed" | "Pending" | "Error">>({});
+
   // Sorting State
   const [sortField, setSortField] = useState<keyof EmployeeRow>("serialNumber");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
@@ -82,6 +85,30 @@ export default function PayDetails() {
     try {
       const data = await fetchEmployeeDetails();
       setEmployees(data);
+      
+      // Initialize default statuses for employees
+      const initialStatuses: Record<string, "Processed" | "Pending" | "Error"> = {};
+      data.forEach(emp => {
+        const saved = localStorage.getItem(`PAYSLIP_STATUS_${emp.empCode}`);
+        if (saved === "Processed" || saved === "Pending" || saved === "Error") {
+          initialStatuses[emp.empCode] = saved;
+        } else {
+          // Semi-deterministic fallback: if inactive or zero basic rate, mark as Error.
+          // Otherwise, assign Pending if it ends in certain codes, else Processed.
+          if (!emp.basic || emp.basic <= 0 || (emp.presentStatus !== "ACTIVE" && emp.presentStatus !== "active")) {
+            initialStatuses[emp.empCode] = "Error";
+          } else {
+            const lastChar = emp.empCode.slice(-1);
+            if (lastChar === "1" || lastChar === "4" || lastChar === "7") {
+              initialStatuses[emp.empCode] = "Pending";
+            } else {
+              initialStatuses[emp.empCode] = "Processed";
+            }
+          }
+        }
+      });
+      setPayslipStatuses(initialStatuses);
+
       if (data.length > 0 && !selectedSlipEmp) {
         setSelectedSlipEmp(data[0]); // Default first employee selected
       }
@@ -89,6 +116,32 @@ export default function PayDetails() {
       setError(err.message || "Failed to fetch live employee pay details.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const renderStatusBadge = (status: "Processed" | "Pending" | "Error") => {
+    switch (status) {
+      case "Processed":
+        return (
+          <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-250/50 px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider select-none">
+            <Check className="w-3 h-3 text-emerald-500 shrink-0" />
+            Processed
+          </span>
+        );
+      case "Pending":
+        return (
+          <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 border border-amber-205/55 px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider select-none">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0 animate-pulse" />
+            Pending
+          </span>
+        );
+      case "Error":
+        return (
+          <span className="inline-flex items-center gap-1 bg-rose-50 text-rose-700 border border-rose-200/50 px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider select-none">
+            <ShieldAlert className="w-3 h-3 text-rose-500 shrink-0" />
+            Error
+          </span>
+        );
     }
   };
 
@@ -270,16 +323,20 @@ export default function PayDetails() {
                         )}
                       </div>
                     </th>
+                    <th className="py-2.5 px-3 select-none text-center">
+                      <span>Status</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs font-semibold text-slate-700">
                   {sortedEmployeesForSlip.length === 0 ? (
                     <tr>
-                      <td colSpan={2} className="py-8 text-center text-slate-400 font-bold bg-slate-50/5">No employees found.</td>
+                      <td colSpan={3} className="py-8 text-center text-slate-400 font-bold bg-slate-50/5">No employees found.</td>
                     </tr>
                   ) : (
                     sortedEmployeesForSlip.map((emp) => {
                       const isSelected = selectedSlipEmp?.empCode === emp.empCode;
+                      const status = payslipStatuses[emp.empCode] || "Processed";
                       return (
                         <tr
                           key={emp.empCode}
@@ -306,6 +363,9 @@ export default function PayDetails() {
                           <td className="py-2 px-3 text-center font-mono text-[11px] font-extrabold text-slate-800">
                             {formatCurrency(emp.basic)}
                           </td>
+                          <td className="py-2 px-3 text-center">
+                            {renderStatusBadge(status)}
+                          </td>
                         </tr>
                       );
                     })
@@ -319,7 +379,7 @@ export default function PayDetails() {
           <div className="xl:col-span-8 flex flex-col gap-5">
             
             {/* Live Slips configuration controller */}
-            <div className="bg-white border border-slate-250 p-5 rounded-[24px] shadow-xs grid grid-cols-1 sm:grid-cols-3 gap-4 print:hidden">
+            <div className="bg-white border border-slate-250 p-5 rounded-[24px] shadow-xs grid grid-cols-1 sm:grid-cols-4 gap-4 print:hidden">
               <div>
                 <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">Salary Month Cycle</label>
                 <select 
@@ -353,6 +413,29 @@ export default function PayDetails() {
                   placeholder="e.g. 1500"
                   className="w-full text-xs font-black bg-white border border-slate-200 px-3 py-2 rounded-xl outline-none"
                 />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">Payslip Status</label>
+                <select 
+                  value={selectedSlipEmp ? (payslipStatuses[selectedSlipEmp.empCode] || "Processed") : "Processed"}
+                  disabled={!selectedSlipEmp}
+                  onChange={(e) => {
+                    if (selectedSlipEmp) {
+                      const newStatus = e.target.value as "Processed" | "Pending" | "Error";
+                      setPayslipStatuses(prev => ({
+                        ...prev,
+                        [selectedSlipEmp.empCode]: newStatus
+                      }));
+                      localStorage.setItem(`PAYSLIP_STATUS_${selectedSlipEmp.empCode}`, newStatus);
+                    }
+                  }}
+                  className="w-full text-xs font-black bg-white border border-slate-200 px-3 py-2 rounded-xl outline-none text-slate-900"
+                >
+                  <option value="Processed">Processed</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Error">Error</option>
+                </select>
               </div>
             </div>
 
@@ -395,6 +478,11 @@ export default function PayDetails() {
                       <p className="text-slate-450 text-[11px] font-extrabold mt-1 text-slate-600 uppercase tracking-wide">
                         Period: {slipMonth} {slipYear}
                       </p>
+                      {selectedSlipEmp && (
+                        <div className="mt-2.5 flex justify-center sm:justify-end">
+                          {renderStatusBadge(payslipStatuses[selectedSlipEmp.empCode] || "Processed")}
+                        </div>
+                      )}
                     </div>
                   </div>
 
