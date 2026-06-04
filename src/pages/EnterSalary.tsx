@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Loader2, Play, CheckCircle2, FileText, AlertCircle, ExternalLink, RefreshCw, Settings, Info, Keyboard } from "lucide-react";
-import { fetchEmployeeDetails, EmployeeRow, getSheetId } from "../lib/googleSheetsService";
+import { fetchEmployeeDetails, EmployeeRow, getSheetId, getAppsScriptUrl } from "../lib/googleSheetsService";
+import ConfirmDialog from "../components/ConfirmDialog";
 
 interface EditableRow {
   serialNumber: string;
@@ -45,7 +46,8 @@ interface ProcessedRow {
 
 export default function EnterSalary() {
   const [loading, setLoading] = useState(false);
-  const [scriptUrl, setScriptUrl] = useState("https://script.google.com/macros/s/AKfycbzsukRpBdg828rZI0YrgIaxs3Bh6VPl33dlMmRm0Vt3FsabaNZfavTUTzns3WayYTXR/exec"); 
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [scriptUrl, setScriptUrl] = useState(getAppsScriptUrl()); 
   const [month, setMonth] = useState("June");
   const [year, setYear] = useState("2026");
   const [defaultPayableDays, setDefaultPayableDays] = useState(26);
@@ -175,15 +177,17 @@ export default function EnterSalary() {
     }
   };
 
-  const handleProcess = async (e: React.FormEvent) => {
+  const handleProcess = (e: React.FormEvent) => {
     e.preventDefault();
     if (!scriptUrl) {
       setNotification({ message: "Please enter a valid Google Apps Script Web App URL first.", type: "error" });
       return;
     }
-    const isConfirmed = window.confirm(`Initiate official calculation execution for (${month} ${year}) with ${rows.length} employees? This transmits row calculation parameters and generates PDF payslips on your Google Drive folder.`);
-    if (!isConfirmed) return;
-    
+    setConfirmOpen(true);
+  };
+
+  const handleConfirmCalculation = async () => {
+    setConfirmOpen(false);
     setLoading(true);
     setResults([]);
     setNotification({ message: "Connecting to Apps Script Engine...", type: "info" });
@@ -710,6 +714,17 @@ export default function EnterSalary() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={confirmOpen}
+        title="Initiate Calculation Pipeline?"
+        message={`Are you sure you want to execute the monthly payroll calculation for ${month} ${year} with ${rows.length} active employees? This will transmit edited salary variables and compile PDF payslips on your Google Drive folder.`}
+        confirmText="Execute Calculation"
+        cancelText="Cancel"
+        type="warning"
+        onConfirm={handleConfirmCalculation}
+        onCancel={() => setConfirmOpen(false)}
+      />
     </div>
   );
 }

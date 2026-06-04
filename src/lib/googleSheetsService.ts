@@ -84,6 +84,22 @@ export function setSheetId(id: string) {
   }
 }
 
+export function getAppsScriptUrl(): string {
+  const custom = localStorage.getItem('YASHODA_APPS_SCRIPT_URL');
+  if (custom && custom.trim().startsWith('http')) {
+    return custom.trim();
+  }
+  return 'https://script.google.com/macros/s/AKfycbzsukRpBdg828rZI0YrgIaxs3Bh6VPl33dlMmRm0Vt3FsabaNZfavTUTzns3WayYTXR/exec';
+}
+
+export function setAppsScriptUrl(url: string) {
+  if (url) {
+    localStorage.setItem('YASHODA_APPS_SCRIPT_URL', url.trim());
+  } else {
+    localStorage.removeItem('YASHODA_APPS_SCRIPT_URL');
+  }
+}
+
 // Local Overrides & Merging Setup
 const EMPLOYEES_OVERRIDE_KEY = 'YASHODA_EMPLOYEES_OVERRIDE';
 const EMPLOYEES_DELETED_KEY = 'YASHODA_EMPLOYEES_DELETED';
@@ -250,6 +266,35 @@ export async function fetchLeaveBalances(): Promise<LeaveBalanceRow[]> {
  * Fetch Dashboard summaries
  */
 export async function fetchDashboardSummary(): Promise<DashboardSummaryRow[]> {
+  const scriptUrl = getAppsScriptUrl();
+  if (scriptUrl) {
+    try {
+      const response = await fetch(scriptUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ action: "GET_DASHBOARD" })
+      });
+      if (response.ok) {
+        const json = await response.json();
+        if (json.status === "Success" && Array.isArray(json.data)) {
+          return json.data.map((item: any) => ({
+            month: safeStr(item.month),
+            year: safeStr(item.year),
+            totalPaid: parseNum(item.total),
+            regularTotal: parseNum(item.regular),
+            consolidatedTotal: parseNum(item.consolidated),
+            status: safeStr(item.status || "PROCESSED")
+          })).filter((s: DashboardSummaryRow) => s.month !== '' && s.year !== '');
+        }
+      }
+    } catch (err) {
+      console.warn("Web App API read failed or CORS blocked. Falling back to Gviz direct sheets fetch...", err);
+    }
+  }
+
+  // Fallback to direct Gviz spreadsheet reader
   const rawRows = await fetchSheetRows('dashboard_summary');
   if (rawRows.length === 0) return [];
   const rows = rawRows.slice(1);

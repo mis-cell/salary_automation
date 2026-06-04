@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "../lib/AuthContext";
 import { fetchEmployeeDetails, EmployeeRow } from "../lib/googleSheetsService";
-import { FileText, Printer, AlertCircle, Loader2, IndianRupee, Search, ChevronRight, Check, X, ShieldAlert } from "lucide-react";
+import { FileText, Printer, AlertCircle, Loader2, IndianRupee, Search, ChevronRight, Check, X, ShieldAlert, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 
 // Robust Indian currency translation to text format
 function numberToWords(num: number): string {
@@ -63,6 +63,10 @@ export default function PayDetails() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
+  // Sorting State
+  const [sortField, setSortField] = useState<keyof EmployeeRow>("serialNumber");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+
   // Filtering & Interaction
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSlipEmp, setSelectedSlipEmp] = useState<EmployeeRow | null>(null);
@@ -101,6 +105,40 @@ export default function PayDetails() {
     emp.empCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
     emp.designation.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const handleSort = (field: keyof EmployeeRow) => {
+    if (sortField === field) {
+      setSortDirection(prev => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
+
+  const sortedEmployeesForSlip = [...filteredEmployees].sort((a, b) => {
+    const valA = a[sortField];
+    const valB = b[sortField];
+
+    if (valA === undefined || valA === null) return 1;
+    if (valB === undefined || valB === null) return -1;
+
+    if (typeof valA === "number" && typeof valB === "number") {
+      return sortDirection === "asc" ? valA - valB : valB - valA;
+    }
+
+    const numA = Number(valA);
+    const numB = Number(valB);
+    if (!isNaN(numA) && !isNaN(numB)) {
+      return sortDirection === "asc" ? numA - numB : numB - numA;
+    }
+
+    const strA = String(valA).trim().toLowerCase();
+    const strB = String(valB).trim().toLowerCase();
+
+    if (strA < strB) return sortDirection === "asc" ? -1 : 1;
+    if (strA > strB) return sortDirection === "asc" ? 1 : -1;
+    return 0;
+  });
 
   // Standard printing utility
   const handlePrint = () => {
@@ -202,36 +240,78 @@ export default function PayDetails() {
               </div>
             </div>
 
-            <div className="divide-y divide-slate-100 max-h-[500px] overflow-y-auto">
-              {filteredEmployees.length === 0 ? (
-                <div className="p-8 text-center text-slate-400 font-bold text-xs">No employees found.</div>
-              ) : (
-                filteredEmployees.map((emp) => {
-                  const isSelected = selectedSlipEmp?.empCode === emp.empCode;
-                  return (
-                    <button
-                      key={emp.empCode}
-                      onClick={() => setSelectedSlipEmp(emp)}
-                      className={`w-full p-4 flex items-center justify-between text-left transition-colors ${
-                        isSelected ? "bg-slate-50" : "hover:bg-slate-50/50"
-                      }`}
+            <div className="overflow-x-auto max-h-[500px]">
+              <table className="w-full text-left border-collapse whitespace-nowrap">
+                <thead>
+                  <tr className="border-b border-slate-200 text-[10px] uppercase font-black bg-slate-50/30 text-slate-500">
+                    <th 
+                      onClick={() => handleSort("name")}
+                      className="py-2.5 px-3 cursor-pointer hover:bg-slate-100/80 select-none group"
                     >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black border ${
-                          isSelected ? "bg-slate-900 border-slate-900 text-white" : "bg-slate-100 border-slate-150 text-slate-800"
-                        }`}>
-                          {emp.name.split(' ').map((n: string) => n[0]).slice(0,2).join('')}
-                        </div>
-                        <div>
-                          <div className="font-extrabold text-slate-900 text-xs">{emp.name}</div>
-                          <div className="text-[10px] text-slate-400 font-bold font-mono mt-0.5">{emp.empCode} • {emp.designation}</div>
-                        </div>
+                      <div className="flex items-center gap-1">
+                        <span>Employee Name</span>
+                        {sortField === "name" ? (
+                          sortDirection === "asc" ? <ArrowUp className="w-3 h-3 text-emerald-600" /> : <ArrowDown className="w-3 h-3 text-emerald-600" />
+                        ) : (
+                          <ArrowUpDown className="w-2.5 h-2.5 text-slate-300 group-hover:text-slate-500" />
+                        )}
                       </div>
-                      <ChevronRight className={`w-4 h-4 transition-transform ${isSelected ? "text-slate-900 translate-x-0.5" : "text-slate-350"}`} />
-                    </button>
-                  );
-                })
-              )}
+                    </th>
+                    <th 
+                      onClick={() => handleSort("basic")}
+                      className="py-2.5 px-3 cursor-pointer hover:bg-slate-100/80 select-none group text-center"
+                    >
+                      <div className="flex items-center gap-1 justify-center">
+                        <span>Basic Pay</span>
+                        {sortField === "basic" ? (
+                          sortDirection === "asc" ? <ArrowUp className="w-3 h-3 text-emerald-600" /> : <ArrowDown className="w-3 h-3 text-emerald-600" />
+                        ) : (
+                          <ArrowUpDown className="w-2.5 h-2.5 text-slate-300 group-hover:text-slate-500" />
+                        )}
+                      </div>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-xs font-semibold text-slate-700">
+                  {sortedEmployeesForSlip.length === 0 ? (
+                    <tr>
+                      <td colSpan={2} className="py-8 text-center text-slate-400 font-bold bg-slate-50/5">No employees found.</td>
+                    </tr>
+                  ) : (
+                    sortedEmployeesForSlip.map((emp) => {
+                      const isSelected = selectedSlipEmp?.empCode === emp.empCode;
+                      return (
+                        <tr
+                          key={emp.empCode}
+                          onClick={() => setSelectedSlipEmp(emp)}
+                          className={`hover:bg-slate-50/70 transition-colors cursor-pointer border-b border-rose-50/10 ${
+                            isSelected 
+                              ? "bg-slate-100 border-l-4 border-slate-900 font-bold" 
+                              : "odd:bg-white even:bg-slate-50/20"
+                          }`}
+                        >
+                          <td className="py-2 px-3">
+                            <div className="flex items-center gap-2">
+                              <div className={`w-7 h-7 rounded-md flex items-center justify-center text-[10px] font-black border uppercase shrink-0 ${
+                                isSelected ? "bg-slate-900 border-slate-900 text-white" : "bg-slate-100 border-slate-150 text-slate-800"
+                              }`}>
+                                {emp.name ? emp.name.split(' ').map((n: string) => n[0]).slice(0,2).join('') : '?'}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="font-extrabold text-slate-950 text-xs leading-none truncate">{emp.name}</div>
+                                <div className="text-[9px] text-slate-400 font-bold font-mono mt-0.5 truncate">{emp.empCode}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-2 px-3 text-center font-mono text-[11px] font-extrabold text-slate-800">
+                            {formatCurrency(emp.basic)}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
 

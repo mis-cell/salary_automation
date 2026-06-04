@@ -7,7 +7,7 @@ import EnterSalary from "./pages/EnterSalary";
 import ManageEmployees from "./pages/ManageEmployees";
 import LeaveBalance from "./pages/LeaveBalance";
 import PayDetails from "./pages/PayDetails";
-import { getSheetId, setSheetId } from "./lib/googleSheetsService";
+import { getSheetId, setSheetId, getAppsScriptUrl, setAppsScriptUrl } from "./lib/googleSheetsService";
 
 // Clean, high-contrast, professional link matching modern SaaS apps
 const NavLink = ({ to, children, icon: Icon, mobile }: { to: string, children: React.ReactNode, icon?: any, mobile?: boolean }) => {
@@ -43,12 +43,14 @@ function AppContent() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [tempSheetId, setTempSheetId] = useState(getSheetId());
+  const [tempAppsScriptUrl, setTempAppsScriptUrl] = useState(getAppsScriptUrl());
   
   // Custom screen mode to fulfill: "make this app view in full screen"
   const [isFullScreen, setIsFullScreen] = useState(true); 
 
   const handleSaveSettings = () => {
     setSheetId(tempSheetId);
+    setAppsScriptUrl(tempAppsScriptUrl);
     setSettingsOpen(false);
     // Reload page to re-trigger all queries
     window.location.reload();
@@ -209,7 +211,18 @@ function AppContent() {
                 />
               </div>
 
-              <div className="bg-slate-55 bg-slate-50/70 p-4 border border-slate-100 rounded-2xl text-[11px] text-slate-600 space-y-2 leading-relaxed">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">Google Apps Script Web App URL</label>
+                <input 
+                  type="text" 
+                  value={tempAppsScriptUrl} 
+                  onChange={(e) => setTempAppsScriptUrl(e.target.value)} 
+                  className="w-full px-4 py-2.5 border border-slate-200 focus:border-slate-400 rounded-xl text-xs font-semibold font-mono text-slate-950 shadow-xs outline-none transition-all focus:ring-4 focus:ring-slate-100"
+                  placeholder="e.g. https://script.google.com/macros/s/.../exec"
+                />
+              </div>
+
+              <div className="bg-slate-50/70 p-4 border border-slate-100 rounded-2xl text-[11px] text-slate-600 space-y-2 leading-relaxed">
                 <p className="font-extrabold text-slate-900">
                   ⚠️ Google Sheets Setup Guidelines
                 </p>

@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { 
   UserPlus, Search, Filter, Loader2, AlertCircle, ChevronDown, CheckCircle, 
   Trash2, Edit3, Plus, X, Coins, HeartHandshake, CalendarDays, Info, Sparkles, 
-  Copy, FileSpreadsheet, Check, Undo, Eye, Download, Users, Mail, UserCheck
+  Copy, FileSpreadsheet, Check, Undo, Eye, Download, Users, Mail, UserCheck,
+  ArrowUpDown, ArrowUp, ArrowDown
 } from "lucide-react";
 import { 
   fetchEmployeeDetails, 
@@ -12,6 +13,7 @@ import {
   getDeletedEmpCodes,
   saveDeletedEmpCodes
 } from "../lib/googleSheetsService";
+import ConfirmDialog from "../components/ConfirmDialog";
 
 interface FormFields {
   serialNumber: string;
@@ -66,6 +68,15 @@ export default function ManageEmployees() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState<"ALL" | "REGULAR" | "CONSOLIDATED" | "ACTIVE" | "INACTIVE">("ALL");
   
+  // Sorting State
+  const [sortField, setSortField] = useState<keyof EmployeeRow>("serialNumber");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+
+  // Custom Confirmations
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [empToDelete, setEmpToDelete] = useState<string | null>(null);
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+
   // Custom Interaction state
   const [selectedEmp, setSelectedEmp] = useState<EmployeeRow | null>(null);
   const [showModal, setShowModal] = useState(false);
@@ -122,6 +133,40 @@ export default function ManageEmployees() {
     if (filterType === "ACTIVE") return matchesSearch && emp.presentStatus === "ACTIVE";
     if (filterType === "INACTIVE") return matchesSearch && emp.presentStatus === "INACTIVE";
     return matchesSearch;
+  });
+
+  const handleSort = (field: keyof EmployeeRow) => {
+    if (sortField === field) {
+      setSortDirection(prev => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
+
+  const sortedEmployees = [...filteredEmployees].sort((a, b) => {
+    const valA = a[sortField];
+    const valB = b[sortField];
+
+    if (valA === undefined || valA === null) return 1;
+    if (valB === undefined || valB === null) return -1;
+
+    if (typeof valA === "number" && typeof valB === "number") {
+      return sortDirection === "asc" ? valA - valB : valB - valA;
+    }
+
+    const numA = Number(valA);
+    const numB = Number(valB);
+    if (!isNaN(numA) && !isNaN(numB)) {
+      return sortDirection === "asc" ? numA - numB : numB - numA;
+    }
+
+    const strA = String(valA).trim().toLowerCase();
+    const strB = String(valB).trim().toLowerCase();
+
+    if (strA < strB) return sortDirection === "asc" ? -1 : 1;
+    if (strA > strB) return sortDirection === "asc" ? 1 : -1;
+    return 0;
   });
 
   const handleOpenAdd = () => {
@@ -273,28 +318,36 @@ export default function ManageEmployees() {
   };
 
   const handleDeleteEmployee = (empCode: string) => {
-    const isConfirmed = window.confirm(`Are you sure you want to delete profile ${empCode} (${selectedEmp?.name})? This flags them as deleted in your client view and updates all wages.`);
-    if (!isConfirmed) return;
+    setEmpToDelete(empCode);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleConfirmDeleteEmployee = () => {
+    if (!empToDelete) return;
+    setDeleteConfirmOpen(false);
 
     // Save as deleted code
     const deletedList = getDeletedEmpCodes();
-    if (!deletedList.includes(empCode.toUpperCase())) {
-      saveDeletedEmpCodes([...deletedList, empCode.toUpperCase()]);
+    if (!deletedList.includes(empToDelete.toUpperCase())) {
+      saveDeletedEmpCodes([...deletedList, empToDelete.toUpperCase()]);
     }
 
     // Erase if was previously added to overrides
     const localList = getLocalEmployees();
-    saveLocalEmployees(localList.filter(le => le.empCode !== empCode.toUpperCase()));
+    saveLocalEmployees(localList.filter(le => le.empCode !== empToDelete.toUpperCase()));
 
+    setEmpToDelete(null);
     setSelectedEmp(null);
     loadWorkers();
   };
 
   // Erase client overlays to match Google Sheet exact payload
   const handleResetOverrides = () => {
-    const isConfirmed = window.confirm("Reset all browser overrides, local additions, edits, and deletions? This restores the exact layout fetched directly from 'emp_details' sheet.");
-    if (!isConfirmed) return;
+    setResetConfirmOpen(true);
+  };
 
+  const handleConfirmResetOverrides = () => {
+    setResetConfirmOpen(false);
     localStorage.removeItem("YASHODA_EMPLOYEES_OVERRIDE");
     localStorage.removeItem("YASHODA_EMPLOYEES_DELETED");
     setSelectedEmp(null);
@@ -496,73 +549,106 @@ export default function ManageEmployees() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse whitespace-nowrap table-fixed">
+              <table className="w-full text-left border-collapse whitespace-nowrap min-w-[900px]">
                 <thead>
-                  <tr className="border-b border-slate-150 text-[10px] uppercase font-black text-slate-400 tracking-wider bg-slate-50/20">
-                    <th className="py-3.5 px-5 w-[240px]">Staff Identity</th>
-                    <th className="py-3.5 px-4 w-[180px]">Role & department</th>
-                    <th className="py-3.5 px-4 text-center w-[120px]">Joined Date</th>
-                    <th className="py-3.5 px-4 text-center w-[140px]">Type</th>
-                    <th className="py-3.5 px-4 text-center w-[140px]">Basic Salary</th>
-                    <th className="py-3.5 px-5 text-center w-[110px]">Status</th>
+                  <tr className="border-b border-slate-200 text-[10px] uppercase font-black text-slate-450 bg-slate-50/40 text-slate-500">
+                    {(() => {
+                      const renderSortHeader = (label: string, field: keyof EmployeeRow, align: "left" | "center" = "left", widthClass?: string) => {
+                        const isActive = sortField === field;
+                        return (
+                          <th 
+                            onClick={() => handleSort(field)} 
+                            className={`py-3 px-4 cursor-pointer hover:bg-slate-100/85 transition-all select-none hover:text-slate-900 group ${widthClass || ""}`}
+                          >
+                            <div className={`flex items-center gap-1.5 ${align === "center" ? "justify-center" : "justify-start"}`}>
+                              <span className="font-sans font-black text-[10px] uppercase tracking-wider text-slate-400 group-hover:text-slate-705 duration-150">{label}</span>
+                              {isActive ? (
+                                sortDirection === "asc" ? (
+                                  <ArrowUp className="w-3.5 h-3.5 text-indigo-650 text-indigo-600 shrink-0" />
+                                ) : (
+                                  <ArrowDown className="w-3.5 h-3.5 text-indigo-650 text-indigo-600 shrink-0" />
+                                )
+                              ) : (
+                                <ArrowUpDown className="w-2.5 h-2.5 text-slate-350 text-slate-300 group-hover:text-slate-500 opacity-60 group-hover:opacity-100 transition-opacity shrink-0" />
+                              )}
+                            </div>
+                          </th>
+                        );
+                      };
+                      return (
+                        <>
+                          {renderSortHeader("Sl", "serialNumber", "center", "w-[60px]")}
+                          {renderSortHeader("Employee Name", "name", "left", "w-[240px]")}
+                          {renderSortHeader("Code", "empCode", "center", "w-[100px]")}
+                          {renderSortHeader("Type", "salaryType", "center", "w-[110px]")}
+                          {renderSortHeader("Department", "department", "left", "w-[155px]")}
+                          {renderSortHeader("Designation", "designation", "left", "w-[160px]")}
+                          {renderSortHeader("Basic", "basic", "center", "w-[120px]")}
+                          {renderSortHeader("Status", "presentStatus", "center", "w-[100px]")}
+                        </>
+                      );
+                    })()}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs font-semibold text-slate-700">
-                  {filteredEmployees.length === 0 ? (
+                  {sortedEmployees.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-20 text-center text-slate-400 font-bold bg-slate-50/5">No registered employees found matching physical criteria. If empty, check sheets connection.</td>
+                      <td colSpan={8} className="py-20 text-center text-slate-400 font-bold bg-slate-50/5">No registered employees found matching criteria. If empty, check sheet connection settings.</td>
                     </tr>
                   ) : (
-                    filteredEmployees.map((emp) => {
+                    sortedEmployees.map((emp) => {
                       const isFocused = selectedEmp?.empCode === emp.empCode;
                       return (
                         <tr 
                           key={emp.empCode} 
                           onClick={() => setSelectedEmp(emp)}
-                          className={`hover:bg-slate-50/70 transition-all cursor-pointer ${
-                            isFocused ? "bg-slate-50/90 border-l-4 border-slate-900" : ""
+                          className={`hover:bg-slate-50/70 transition-all cursor-pointer border-b border-rose-50/20 ${
+                            isFocused 
+                              ? "bg-slate-100/90 border-l-4 border-slate-900 font-bold" 
+                              : "odd:bg-white even:bg-slate-50/20"
                           }`}
                         >
-                          <td className="py-4 px-5">
+                          <td className="py-2.5 px-4 text-center font-mono text-[11px] text-slate-400 font-bold">
+                            {emp.serialNumber}
+                          </td>
+                          <td className="py-2.5 px-4">
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-800 font-black text-sm shrink-0 border border-slate-200">
+                              <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-800 font-black text-xs shrink-0 border border-slate-200">
                                 {emp.name ? emp.name.split(' ').map((n: string) => n[0]).slice(0, 2).join('') : '?'}
                               </div>
                               <div className="min-w-0">
                                 <div className="font-extrabold text-slate-950 text-sm leading-none truncate">{emp.name}</div>
-                                <div className="flex items-center gap-1.5 mt-2">
-                                  <span className="font-mono text-[9px] text-slate-400 font-black bg-slate-100 rounded px-1.5 py-0.5">{emp.empCode}</span>
-                                  <span className="text-[9px] font-medium text-slate-400">Sl: #{emp.serialNumber}</span>
-                                </div>
                               </div>
                             </div>
                           </td>
-                          <td className="py-4 px-4 min-w-0">
-                            <div className="font-extrabold text-slate-900 truncate">{emp.designation}</div>
-                            <div className="text-[10px] text-slate-500 font-semibold mt-1 truncate">{emp.department}</div>
+                          <td className="py-2.5 px-4 text-center font-mono text-[11px] text-slate-600 font-bold">
+                            {emp.empCode}
                           </td>
-                          <td className="py-4 px-4 text-center text-slate-600 font-medium font-mono text-[11px]">
-                            {emp.doj || 'N/A'}
-                          </td>
-                          <td className="py-4 px-4 text-center">
-                            <span className={`inline-flex items-center px-2 py-1 rounded text-[10px] font-black uppercase tracking-wide border ${
+                          <td className="py-2.5 px-4 text-center">
+                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wide border ${
                               emp.salaryType === 'REGULAR' 
                                 ? 'bg-slate-100 text-slate-800 border-slate-200' 
-                                : 'bg-indigo-50 text-indigo-800 border-indigo-100'
+                                : 'bg-indigo-50 text-indigo-805 border-indigo-100'
                             }`}>
                               {emp.salaryType}
                             </span>
                           </td>
-                          <td className="py-4 px-4 text-center font-extrabold text-slate-900">
+                          <td className="py-2.5 px-4 font-extrabold text-slate-500 truncate text-[11px]">
+                            {emp.department}
+                          </td>
+                          <td className="py-2.5 px-4 text-slate-800 truncate text-[11px]">
+                            {emp.designation}
+                          </td>
+                          <td className="py-2.5 px-4 text-center font-extrabold text-slate-950">
                             {formatCurrency(emp.basic)}
                           </td>
-                          <td className="py-4 px-5 text-center">
-                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold border ${
+                          <td className="py-2.5 px-4 text-center">
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold border ${
                               emp.presentStatus === 'ACTIVE' 
                                 ? 'bg-emerald-50 text-emerald-800 border-emerald-100' 
-                                : 'bg-slate-150 text-slate-500 border-slate-250 bg-slate-100'
+                                : 'bg-slate-100 text-slate-500 border-slate-200'
                             }`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${emp.presentStatus === 'ACTIVE' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`}></span>
+                              <span className={`w-1 h-1 rounded-full ${emp.presentStatus === 'ACTIVE' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`}></span>
                               {emp.presentStatus === 'ACTIVE' ? 'Active' : 'Inactive'}
                             </span>
                           </td>
@@ -1142,6 +1228,33 @@ export default function ManageEmployees() {
           </div>
         </div>
       )}
+
+      {/* Employee Deletion Custom Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={deleteConfirmOpen}
+        title="Delete Employee Profile?"
+        message={`Are you sure you want to delete the profile for employee ${empToDelete}? This action will remove their details from the directory and mark them as deleted in your client view.`}
+        confirmText="Confirm Delete"
+        cancelText="Cancel"
+        type="danger"
+        onConfirm={handleConfirmDeleteEmployee}
+        onCancel={() => {
+          setDeleteConfirmOpen(false);
+          setEmpToDelete(null);
+        }}
+      />
+
+      {/* DB Reset Overrides Custom Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={resetConfirmOpen}
+        title="Reset All Local Changes?"
+        message="Are you sure you want to clear all your local additions, edits, and deletions? This will restore the exact employee roster structure fetched directly from the 'emp_details' sheet."
+        confirmText="Reset Roster"
+        cancelText="Cancel"
+        type="warning"
+        onConfirm={handleConfirmResetOverrides}
+        onCancel={() => setResetConfirmOpen(false)}
+      />
 
     </div>
   );
