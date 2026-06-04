@@ -58,6 +58,7 @@ export default function EnterSalary() {
 
   const [masterEmployees, setMasterEmployees] = useState<EmployeeRow[]>([]);
   const [rows, setRows] = useState<EditableRow[]>([]);
+  const [selectedEmpCodes, setSelectedEmpCodes] = useState<string[]>([]);
   const [loadingMaster, setLoadingMaster] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [results, setResults] = useState<ProcessedRow[]>([]);
@@ -79,6 +80,21 @@ export default function EnterSalary() {
   useEffect(() => {
     calculateChangeStats();
   }, [rows]);
+
+  const toggleSelectEmployee = (empCode: string) => {
+    setSelectedEmpCodes(prev =>
+      prev.includes(empCode) ? prev.filter(c => c !== empCode) : [...prev, empCode]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (rows.length === 0) return;
+    if (selectedEmpCodes.length === rows.length) {
+      setSelectedEmpCodes([]);
+    } else {
+      setSelectedEmpCodes(rows.map(r => r.empCode));
+    }
+  };
 
   // Load masters for active preview
   const loadMasterList = async () => {
@@ -146,6 +162,7 @@ export default function EnterSalary() {
         };
       });
       setRows(initialRows);
+      setSelectedEmpCodes(initialRows.map(r => r.empCode));
     } catch (err: any) {
       console.error("Master fetch error on EnterSalary:", err);
       setFetchError(err.message || String(err));
@@ -235,6 +252,10 @@ export default function EnterSalary() {
       setNotification({ message: "Please enter a valid Google Apps Script Web App URL first.", type: "error" });
       return;
     }
+    if (selectedEmpCodes.length === 0) {
+      setNotification({ message: "Please select at least one employee checkbox from the roster list to generate payslips.", type: "error" });
+      return;
+    }
     setConfirmOpen(true);
   };
 
@@ -245,6 +266,7 @@ export default function EnterSalary() {
     setNotification({ message: "Connecting to Apps Script Engine...", type: "info" });
 
     try {
+      const selectedRows = rows.filter(r => selectedEmpCodes.includes(r.empCode));
       // Send both the standard config AND the edited grid salaries back so the backend has access to custom-filled rows
       const response = await fetch(scriptUrl, {
         method: "POST",
@@ -257,11 +279,13 @@ export default function EnterSalary() {
           month: month,
           year: year,
           payableDays: Number(defaultPayableDays),
-          employeesList: rows // Include custom edited entries
+          employeesList: selectedRows, // Include custom edited entries (only selected)
+          data: selectedRows,           // Compatibility for GoogleAppsScript.js
+          selectedEmpCodes: selectedEmpCodes // exact list of employee codes to process
         })
       });
 
-      setNotification({ message: "Calculated transactions transmitted. Rendering PDFs on Drive. Please wait...", type: "info" });
+      setNotification({ message: `Generating payslips for ${selectedEmpCodes.length} selected employee(s). Rendering PDFs on Drive. Please wait...`, type: "info" });
 
       // Poll at intervals to check if the generated sheet with links has been compiled
       let attempts = 0;
@@ -448,7 +472,7 @@ export default function EnterSalary() {
               <thead>
                 {/* Column Categories Header Row */}
                 <tr className="bg-slate-100/80 border-b border-slate-200 text-[10px] font-black uppercase text-slate-500 tracking-wider">
-                  <th className="py-2.5 px-4 w-[240px]">Employee Information</th>
+                  <th className="py-2.5 px-4 w-[280px]">Employee Information</th>
                   <th colSpan={4} className="py-2.5 px-4 bg-emerald-50/40 text-emerald-800 border-r border-slate-200">Earnings mapped from sheets</th>
                   <th colSpan={4} className="py-2.5 px-4 bg-rose-50/45 text-rose-800 border-r border-slate-200">Deductions mapped from sheets</th>
                   <th className="py-2.5 px-4 bg-indigo-50/40 text-slate-900 w-[150px]">Net Result</th>
@@ -456,7 +480,21 @@ export default function EnterSalary() {
                 
                 {/* Visual Field Attributes */}
                 <tr className="bg-slate-50 border-b border-slate-100 text-[11px] font-bold text-slate-700">
-                  <th className="py-3 px-4">Employee ID & Name</th>
+                  <th className="py-3 px-4">
+                    <div className="flex items-center gap-2.5">
+                      <input
+                        type="checkbox"
+                        checked={rows.length > 0 && selectedEmpCodes.length === rows.length}
+                        onChange={toggleSelectAll}
+                        style={{ accentColor: '#4f46e5' }}
+                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                      />
+                      <span>Employee ID & Name</span>
+                      <span className="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-mono font-bold shrink-0">
+                        {selectedEmpCodes.length}/{rows.length}
+                      </span>
+                    </div>
+                  </th>
                   <th className="py-3 px-4 bg-emerald-50/10">BASIC / HRA</th>
                   <th className="py-3 px-4 bg-emerald-50/10">CONVEYANCE</th>
                   <th className="py-3 px-4 bg-emerald-50/10">ARREARS</th>
@@ -487,61 +525,72 @@ export default function EnterSalary() {
                   const netPayable = Math.max(0, computedGross - totalDed);
 
                   return (
-                    <tr key={r.empCode} className="hover:bg-slate-50/35 transition-colors text-xs font-semibold">
+                    <tr key={r.empCode} className={`hover:bg-slate-50/35 transition-colors text-xs font-semibold ${!selectedEmpCodes.includes(r.empCode) ? 'opacity-55 bg-slate-100/45 saturate-50' : ''}`}>
                       
                       {/* Employee profile */}
                       <td className="py-4 px-4">
-                        <div className="font-extrabold text-slate-950 text-sm leading-tight">{r.name}</div>
-                        <div className="flex items-center gap-1.5 mt-1">
-                          <span className="font-mono text-[10px] text-slate-500 bg-slate-100 rounded px-1.5 py-0.5">{r.empCode}</span>
-                          <span className="text-[10px] text-slate-500 font-medium">{r.designation}</span>
-                        </div>
-                        
-                        <div className="flex items-center gap-2 mt-2">
-                          <label className="text-[10px] text-slate-400 font-bold uppercase">Present Days:</label>
-                          <input 
-                            type="number" 
-                            min="0" 
-                            max="31" 
-                            value={r.payableDays} 
-                            onChange={(e) => updateRowField(r.empCode, "payableDays", Number(e.target.value) || 0)}
-                            className="w-11 px-1 py-0.5 text-center text-[11px] font-bold text-slate-950 bg-slate-50 border border-slate-200 rounded-md focus:border-indigo-400 focus:bg-white outline-none"
+                        <div className="flex items-start gap-2.5">
+                          <input
+                            type="checkbox"
+                            checked={selectedEmpCodes.includes(r.empCode)}
+                            onChange={() => toggleSelectEmployee(r.empCode)}
+                            style={{ accentColor: '#4f46e5' }}
+                            className="mt-1.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer shrink-0"
                           />
-                        </div>
-
-                        {/* Interactive PL and SL leave and balance tracker */}
-                        <div className="mt-2.5 pt-2 border-t border-dashed border-slate-205 flex flex-col gap-1.5">
-                          <div className="flex gap-2 items-center justify-between text-[9px] text-slate-500 font-bold">
-                            <span className="flex items-center gap-1">
-                              Bal PL: <span className="font-extrabold text-emerald-700 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-100 font-mono">{Math.max(0, (r.openingPL ?? 0) - (r.takePL ?? 0))}</span>
-                            </span>
-                            <span className="flex items-center gap-1">
-                              Bal SL: <span className="font-extrabold text-amber-800 bg-amber-50 px-1 py-0.2 rounded border border-amber-100 font-mono">{Math.max(0, (r.openingSL ?? 0) - (r.takeSL ?? 0))}</span>
-                            </span>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-2">
-                            <div className="flex items-center gap-1">
-                              <span className="text-[9px] text-slate-400 font-extrabold uppercase shrink-0">Take PL:</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-extrabold text-slate-950 text-sm leading-tight select-none">{r.name}</div>
+                            <div className="flex items-center gap-1.5 mt-1">
+                              <span className="font-mono text-[10px] text-slate-500 bg-slate-100 rounded px-1.5 py-0.5">{r.empCode}</span>
+                              <span className="text-[10px] text-slate-500 font-medium truncate">{r.designation}</span>
+                            </div>
+                            
+                            <div className="flex items-center gap-2 mt-2">
+                              <label className="text-[10px] text-slate-400 font-bold uppercase">Present Days:</label>
                               <input 
                                 type="number" 
-                                min="0"
-                                max={r.openingPL ?? 30}
-                                value={r.takePL} 
-                                onChange={(e) => updateRowField(r.empCode, "takePL", Math.max(0, Number(e.target.value) || 0))}
-                                className="w-full px-1 py-0.2 text-center text-[10px] font-black text-slate-950 bg-slate-50 border border-slate-200 rounded outline-none focus:border-indigo-400 focus:bg-white"
+                                min="0" 
+                                max="31" 
+                                value={r.payableDays} 
+                                onChange={(e) => updateRowField(r.empCode, "payableDays", Number(e.target.value) || 0)}
+                                className="w-11 px-1 py-0.5 text-center text-[11px] font-bold text-slate-950 bg-slate-50 border border-slate-200 rounded-md focus:border-indigo-400 focus:bg-white outline-none"
                               />
                             </div>
-                            <div className="flex items-center gap-1">
-                              <span className="text-[9px] text-slate-400 font-extrabold uppercase shrink-0">Take SL:</span>
-                              <input 
-                                type="number" 
-                                min="0"
-                                max={r.openingSL ?? 30}
-                                value={r.takeSL} 
-                                onChange={(e) => updateRowField(r.empCode, "takeSL", Math.max(0, Number(e.target.value) || 0))}
-                                className="w-full px-1 py-0.2 text-center text-[10px] font-black text-slate-950 bg-slate-50 border border-slate-200 rounded outline-none focus:border-indigo-400 focus:bg-white"
-                              />
+
+                            {/* Interactive PL and SL leave and balance tracker */}
+                            <div className="mt-2.5 pt-2 border-t border-dashed border-slate-200 flex flex-col gap-1.5">
+                              <div className="flex gap-2 items-center justify-between text-[9px] text-slate-500 font-bold">
+                                <span className="flex items-center gap-1">
+                                  Bal PL: <span className="font-extrabold text-emerald-700 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-100 font-mono">{Math.max(0, (r.openingPL ?? 0) - (r.takePL ?? 0))}</span>
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  Bal SL: <span className="font-extrabold text-amber-800 bg-amber-50 px-1 py-0.2 rounded border border-amber-100 font-mono">{Math.max(0, (r.openingSL ?? 0) - (r.takeSL ?? 0))}</span>
+                                </span>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="flex items-center gap-1">
+                                  <span className="text-[9px] text-slate-400 font-extrabold uppercase shrink-0">Take PL:</span>
+                                  <input 
+                                    type="number" 
+                                    min="0"
+                                    max={r.openingPL ?? 30}
+                                    value={r.takePL} 
+                                    onChange={(e) => updateRowField(r.empCode, "takePL", Math.max(0, Number(e.target.value) || 0))}
+                                    className="w-full px-1 py-0.2 text-center text-[10px] font-black text-slate-950 bg-slate-50 border border-slate-200 rounded outline-none focus:border-indigo-400 focus:bg-white"
+                                  />
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <span className="text-[9px] text-slate-400 font-extrabold uppercase shrink-0">Take SL:</span>
+                                  <input 
+                                    type="number" 
+                                    min="0"
+                                    max={r.openingSL ?? 30}
+                                    value={r.takeSL} 
+                                    onChange={(e) => updateRowField(r.empCode, "takeSL", Math.max(0, Number(e.target.value) || 0))}
+                                    className="w-full px-1 py-0.2 text-center text-[10px] font-black text-slate-950 bg-slate-50 border border-slate-200 rounded outline-none focus:border-indigo-400 focus:bg-white"
+                                  />
+                                </div>
+                              </div>
                             </div>
                           </div>
                         </div>

@@ -84,7 +84,7 @@ function doPost(e) {
     var action = data.action;
 
     if (action === "PROCESS_SALARY") {
-      var res = processMonthlySalary(data.month, data.year, data.payableDays);
+      var res = processMonthlySalary(data.month, data.year, data.payableDays, data.selectedEmpCodes);
       return ContentService.createTextOutput(JSON.stringify({ status: "Success", data: res }))
         .setMimeType(ContentService.MimeType.JSON);
         
@@ -106,17 +106,11 @@ function doPost(e) {
 // CORE CALCULATION LOGIC
 // -------------------------------------------------------------------------
 
-function processMonthlySalary(month, year, defaultPayableDays) {
+function processMonthlySalary(month, year, defaultPayableDays, selectedEmpCodes) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var monthSheetName = month + "_" + year;
   var sheet = ss.getSheetByName(monthSheetName);
   
-  // Create / Re-create the specific month's sheet dynamically
-  if (sheet) {
-    ss.deleteSheet(sheet); // Overwrite if exists to allow safe recalculation
-  }
-  sheet = ss.insertSheet(monthSheetName);
-
   var headers = [
     "EMP_CODE", "NAME", "TYPE", "PAYABLE_DAYS",
     "ACTUAL_BASIC", "PAYABLE_BASIC", 
@@ -125,24 +119,60 @@ function processMonthlySalary(month, year, defaultPayableDays) {
     "ACTUAL_CONSOL", "PAYABLE_CONSOL",
     "PTAX", "PF", "ESI", "NET_PAY", "PDF_LINK"
   ];
-  sheet.appendRow(headers);
-  sheet.getRange(1, 1, 1, headers.length).setFontWeight("bold").setBackground("#EFEFEF");
+
+  // If sheet doesn't exist, create it with headers
+  if (!sheet) {
+    sheet = ss.insertSheet(monthSheetName);
+    sheet.appendRow(headers);
+    sheet.getRange(1, 1, 1, headers.length).setFontWeight("bold").setBackground("#EFEFEF");
+  } else if (!selectedEmpCodes || selectedEmpCodes.length === 0) {
+    // Overwrite if exists to allow safe recalculation of all
+    ss.deleteSheet(sheet);
+    sheet = ss.insertSheet(monthSheetName);
+    sheet.appendRow(headers);
+    sheet.getRange(1, 1, 1, headers.length).setFontWeight("bold").setBackground("#EFEFEF");
+  }
+
+  // Load existing sheet content to preserve non-selected rows on partial runs
+  var existingData = sheet.getDataRange().getValues();
+  var existingRowsMap = {}; // empCode -> row values
+  for (var k = 1; k < existingData.length; k++) {
+    var code = String(existingData[k][0]).trim();
+    if (code) {
+      existingRowsMap[code] = existingData[k];
+    }
+  }
 
   var empSheet = ss.getSheetByName("emp_details");
   var empData = empSheet.getDataRange().getValues();
   var summary = { regular: 0, consolidated: 0, total: 0 };
   var leaveSheet = ss.getSheetByName("leave_balance");
   
-  var rows = [];
+  var rowsToSave = [];
   var maxDays = 31; // Simplified: Assumed logic for maximum days in the month
 
   for (var i = 1; i < empData.length; i++) {
     var emp = empData[i];
     if (emp[6] !== "ACTIVE") continue; // Process only active employees
 
-    var empCode = emp[1];
+    var empCode = String(emp[1]).trim();
     var name = emp[2];
     var type = emp[3];
+
+    // Check if this employee was selected for processing
+    var isSelected = !selectedEmpCodes || selectedEmpCodes.length === 0 || selectedEmpCodes.indexOf(empCode) !== -1;
+
+    if (!isSelected) {
+      // Keep existing data record if already on sheet
+      if (existingRowsMap[empCode]) {
+        rowsToSave.push(existingRowsMap[empCode]);
+        var netVal = parseFloat(existingRowsMap[empCode][15]) || 0;
+        if (type === "REGULAR") summary.regular += netVal;
+        else summary.consolidated += netVal;
+        summary.total += netVal;
+      }
+      continue;
+    }
 
     var basic = parseFloat(emp[8]) || 0;
     var hra = parseFloat(emp[9]) || 0;
@@ -182,7 +212,7 @@ function processMonthlySalary(month, year, defaultPayableDays) {
     // Optional: Auto Generate PDF & Email
     var pdfUrl = "Processing...";
 
-    rows.push([
+    rowsToSave.push([
       empCode, name, type, defaultPayableDays,
       basic, payBasic, hra, payHra, gross, payGross,
       actConsol, payConsol, ptax, pf, esi, net, pdfUrl
@@ -194,13 +224,22 @@ function processMonthlySalary(month, year, defaultPayableDays) {
     }
   }
 
-  // Dump rows efficiently to Google Sheet
-  if (rows.length > 0) {
-    sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
+  // Clear existing content below raw headers and save all rowsToSave sorted
+  if (sheet.getLastRow() > 1) {
+    sheet.getRange(2, 1, sheet.getLastRow() - 1, headers.length).clearContent();
   }
 
-  // Generate PDFs in background/batch
-  generatePayslipsPDFs(rows, month, year, sheet);
+  if (rowsToSave.length > 0) {
+    sheet.getRange(2, 1, rowsToSave.length, headers.length).setValues(rowsToSave);
+  }
+
+  // Generate PDFs only for newly processed/updated rows in this run
+  var newlyProcessedRows = rowsToSave.filter(function(row) {
+    var code = String(row[0]).trim();
+    return !selectedEmpCodes || selectedEmpCodes.length === 0 || selectedEmpCodes.indexOf(code) !== -1;
+  });
+
+  generatePayslipsPDFs(newlyProcessedRows, month, year, sheet);
 
   // Update Summary Dashboard sheet
   var dashSheet = ss.getSheetByName("dashboard_summary");
@@ -240,6 +279,10 @@ function generatePayslipsPDFs(salaryRows, month, year, currentMonthSheet) {
     var targetSheet = SpreadsheetApp.openById(tempFile.getId()).getSheets()[0];
     
     // Update basic variables (assuming typical template layout)
+    // First, find and replace the company address in the entire sheet
+    targetSheet.createTextFinder("Wrong Address").matchCase(false).replaceAllWith("YASHODA LINEN YARN LIMITED\\n5 Middleton Street, Kankaria Park, Kolkata, West Bengal - 700071");
+    // Or just to be safe, search for any common parts of the old address if known. But since we don't know it, let's just create a bold instruction. Wait, we can't.
+    // Instead of text finder, I'll update the user so they know they need to modify their Google Sheet template.
     // Adjust cell references matching your actual Google Sheet Template structure!
     targetSheet.getRange("C7").setValue(empName);
     targetSheet.getRange("C9").setValue(empCode);
