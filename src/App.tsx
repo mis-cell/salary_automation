@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Routes, Route, Link, useLocation, HashRouter } from "react-router-dom";
 import { useAuth, AuthProvider } from "./lib/AuthContext";
-import { Menu, LogOut, FileText, Users, CalendarDays, LayoutDashboard, Calculator, IndianRupee, Settings, Check, Monitor, X, HelpCircle, Palette } from "lucide-react";
+import { Menu, LogOut, FileText, Users, CalendarDays, LayoutDashboard, Calculator, IndianRupee, Settings, Check, Monitor, X, HelpCircle, Palette, BarChart3 } from "lucide-react";
 import Dashboard from "./pages/Dashboard";
 import EnterSalary from "./pages/EnterSalary";
 import ManageEmployees from "./pages/ManageEmployees";
@@ -186,53 +186,22 @@ function AppContent() {
               <NavLink to="/employees" icon={Users}>Directory</NavLink>
               <NavLink to="/leave" icon={CalendarDays}>Leave Balance</NavLink>
               <NavLink to="/pay" icon={IndianRupee}>Pay Details</NavLink>
+              <NavLink to="/reports" icon={BarChart3}>Reports</NavLink>
             </nav>
 
             {/* Desktop Actions */}
             <div className="hidden md:flex items-center gap-2">
-              {/* Dynamic Theme Palette Swatches directly in header */}
-              <div className="flex items-center gap-1.5 bg-slate-100 p-1.5 rounded-xl border border-slate-200/60 mr-1.5 shadow-xs shrink-0">
-                <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider px-1 inline-flex items-center gap-1">
-                  <Palette className="w-3 h-3 text-slate-500" /> Palette
-                </span>
-                {(Object.keys(themeConfigs) as ThemeKey[]).map((tKey) => {
-                  const cfg = themeConfigs[tKey];
-                  const active = currentTheme === tKey;
-                  return (
-                    <button
-                      key={tKey}
-                      onClick={() => setTheme(tKey)}
-                      title={cfg.label}
-                      className={`w-5.5 h-5.5 rounded-full border transition-all duration-250 cursor-pointer hover:scale-110 relative flex items-center justify-center ${
-                        active ? "border-slate-800 scale-105 shadow-sm ring-1 ring-slate-400/50" : "border-transparent opacity-65 hover:opacity-100"
-                      }`}
-                      style={{ backgroundColor: cfg.colorHex }}
-                    >
-                      {active && <Check className="w-2.5 h-2.5 text-white stroke-[3.5]" />}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <button 
-                onClick={() => setIsFullScreen(!isFullScreen)} 
-                className="group flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:border-slate-300 rounded-xl transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 cursor-pointer"
-              >
-                <Monitor className="w-3.5 h-3.5 text-slate-500 group-hover:text-slate-700 transition-colors" />
-                <span>{isFullScreen ? "Standard Width" : "Full Screen"}</span>
-              </button>
-
               <button 
                 onClick={() => setSettingsOpen(true)} 
-                className="group flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:border-slate-300 rounded-xl transition-all duration-200 hover:shadow-md cursor-pointer"
+                className="group flex items-center gap-2 px-3.5 py-2 text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:border-slate-300 rounded-xl transition-all duration-200 hover:shadow-md cursor-pointer"
               >
-                <Settings className="w-3.5 h-3.5 text-slate-500 group-hover:rotate-90 transition-transform duration-300" />
-                <span>Connection</span>
+                <Settings className="w-3.5 h-3.5 text-slate-500 group-hover:rotate-[30deg] transition-transform duration-300" />
+                <span>Settings</span>
               </button>
 
               <button 
                 onClick={logout} 
-                className="group flex items-center gap-2 px-3 py-2 text-xs font-bold text-rose-600 bg-white border border-rose-200 hover:bg-rose-50 rounded-xl transition-all duration-200 hover:shadow-md cursor-pointer"
+                className="group flex items-center gap-2 px-3.5 py-2 text-xs font-bold text-rose-600 bg-white border border-rose-200 hover:bg-rose-50 rounded-xl transition-all duration-200 hover:shadow-md cursor-pointer"
               >
                 <LogOut className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
                 <span>Sign Out</span>
@@ -241,12 +210,6 @@ function AppContent() {
 
             {/* Mobile Actions */}
             <div className="md:hidden flex items-center gap-2">
-              <button 
-                onClick={() => setIsFullScreen(!isFullScreen)} 
-                className="p-2 text-slate-600 bg-white border border-slate-200 rounded-xl transition-all hover:shadow-md cursor-pointer"
-              >
-                <Monitor className="w-4 h-4" />
-              </button>
               <button 
                 onClick={() => setSettingsOpen(true)} 
                 className="p-2 text-slate-600 bg-white border border-slate-200 rounded-xl transition-all hover:shadow-md cursor-pointer"
@@ -272,36 +235,14 @@ function AppContent() {
               <NavLink to="/employees" icon={Users} mobile>Directory</NavLink>
               <NavLink to="/leave" icon={CalendarDays} mobile>Leave Balance</NavLink>
               <NavLink to="/pay" icon={IndianRupee} mobile>Pay Details</NavLink>
+              <NavLink to="/reports" icon={BarChart3} mobile>Reports</NavLink>
               
-              {/* Theme switch inside mobile sidebar too */}
-              <div className="pt-4 pb-2 border-t border-slate-100">
-                <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-2 pl-3">App Palette Theme</span>
-                <div className="flex flex-wrap gap-1.5 justify-start pl-3 pr-2">
-                  {(Object.keys(themeConfigs) as ThemeKey[]).map((tKey) => {
-                    const cfg = themeConfigs[tKey];
-                    const active = currentTheme === tKey;
-                    return (
-                      <button
-                        key={tKey}
-                        onClick={() => setTheme(tKey)}
-                        className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] font-black tracking-widest uppercase transition-all ${
-                          active ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-750 hover:bg-slate-200"
-                        }`}
-                      >
-                        <span className="w-2 h-2 rounded-full inline-block border border-white/20" style={{ backgroundColor: cfg.colorHex }} />
-                        <span>{cfg.label.split(" ")[0]}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
               <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
                 <button 
                   onClick={() => { setMenuOpen(false); setSettingsOpen(true); }} 
                   className="flex items-center justify-center gap-2.5 px-4 py-3 w-full text-sm font-bold text-slate-700 bg-slate-50 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
                 >
-                  <Settings className="w-5 h-5 text-slate-500" /> Sheet Connection
+                  <Settings className="w-5 h-5 text-slate-500" /> Settings
                 </button>
                 <button onClick={logout} className="flex items-center justify-center gap-2.5 px-4 py-3 w-full text-sm font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl transition-all cursor-pointer">
                   <LogOut className="w-5 h-5" /> Sign out
@@ -314,17 +255,18 @@ function AppContent() {
 
       {/* Premium Settings Modal */}
       {settingsOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-white/55 animate-in zoom-in-95 duration-200 overflow-hidden">
-            <div className="bg-gradient-to-r from-slate-50 to-white px-6 py-5 border-b border-slate-100">
+        <div className="fixed inset-0 bg-slate-900/65 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-xl w-full shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-200 overflow-hidden flex flex-col max-h-[90vh]">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-slate-50 to-white px-6 py-5 border-b border-slate-100 shrink-0">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-slate-100 rounded-xl">
-                    <Settings className="w-5 h-5 text-slate-700" />
+                  <div className="p-2.5 bg-slate-100 rounded-2xl">
+                    <Settings className="w-5 h-5 text-slate-700 animate-spin-slow" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-slate-800 tracking-tight font-display">Sheet Connection</h2>
-                    <p className="text-xs text-slate-500 font-medium mt-0.5">Configure Google Sheets integration</p>
+                    <h2 className="text-xl font-black text-slate-800 tracking-tight font-display">System Settings</h2>
+                    <p className="text-xs text-slate-500 font-medium mt-0.5 animate-pulse">Configure theme palette, layout width, and sheet integration</p>
                   </div>
                 </div>
                 <button onClick={() => setSettingsOpen(false)} className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer">
@@ -333,58 +275,133 @@ function AppContent() {
               </div>
             </div>
 
-            <div className="p-6 space-y-5">
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-605 text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                  Google Sheet ID <HelpCircle className="w-3" />
-                </label>
-                <input 
-                  type="text" 
-                  value={tempSheetId} 
-                  onChange={(e) => setTempSheetId(e.target.value)} 
-                  className="w-full px-4 py-2.5 border border-slate-205 border-slate-200 focus:border-slate-400 rounded-xl text-sm font-mono text-slate-700 bg-slate-50/50 focus:bg-white transition-all outline-none focus:ring-2 focus:ring-slate-200"
-                  placeholder="1IoGYxMMOrVzkHyqp1n2InXgf14jLJUEfKZMX5MWVBj4"
-                />
+            {/* Scrollable Modal Content */}
+            <div className="p-6 space-y-6 overflow-y-auto flex-1">
+              {/* SECTION 1: APPEARANCE & LAYOUT */}
+              <div className="space-y-4">
+                <h3 className="text-xs font-black uppercase text-slate-450 text-slate-400 tracking-wider flex items-center gap-1.5 border-b border-slate-100 pb-2">
+                  <Palette className="w-3.5 h-3.5 text-slate-505 text-slate-500" />
+                  Appearance Settings
+                </h3>
+
+                {/* Color Palette theme picker */}
+                <div className="space-y-2.5">
+                  <span className="text-xs font-bold text-slate-700 block">Select Palette Theme</span>
+                  <div className="flex flex-wrap gap-2.5">
+                    {(Object.keys(themeConfigs) as ThemeKey[]).map((tKey) => {
+                      const cfg = themeConfigs[tKey];
+                      const active = currentTheme === tKey;
+                      return (
+                        <button
+                          key={tKey}
+                          onClick={() => setTheme(tKey)}
+                          title={cfg.label}
+                          className={`w-8 h-8 rounded-full border transition-all duration-250 cursor-pointer hover:scale-110 relative flex items-center justify-center ${
+                            active ? "border-slate-800 scale-105 shadow-md ring-2 ring-slate-400/50" : "border-slate-200 hover:border-slate-300"
+                          }`}
+                          style={{ backgroundColor: cfg.colorHex }}
+                        >
+                          {active && <Check className="w-3.5 h-3.5 text-white stroke-[3.5]" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <span className="text-[10px] text-slate-400 block font-semibold">
+                    Current Workspace Colors: <span className="text-slate-700 font-bold">{theme.label}</span>
+                  </span>
+                </div>
+
+                {/* Screen Width Toggle */}
+                <div className="space-y-2.5 pt-1">
+                  <span className="text-xs font-bold text-slate-700 block">Screen Layout Mode</span>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setIsFullScreen(false)}
+                      className={`flex-1 py-2.5 px-4 border rounded-xl text-xs font-black flex items-center justify-center gap-2 hover:bg-slate-50 transition-all cursor-pointer ${
+                        !isFullScreen 
+                          ? "bg-slate-900 border-slate-900 text-white hover:bg-slate-900 shadow-sm" 
+                          : "bg-white border-slate-200 text-slate-600"
+                      }`}
+                    >
+                      <X className="w-3.5 h-3.5 rotate-45" />
+                      <span>Standard Width</span>
+                    </button>
+                    <button
+                      onClick={() => setIsFullScreen(true)}
+                      className={`flex-1 py-2.5 px-4 border rounded-xl text-xs font-black flex items-center justify-center gap-2 hover:bg-slate-50 transition-all cursor-pointer ${
+                        isFullScreen 
+                          ? "bg-slate-900 border-slate-900 text-white hover:bg-slate-900 shadow-sm" 
+                          : "bg-white border-slate-200 text-slate-600"
+                      }`}
+                    >
+                      <Monitor className="w-3.5 h-3.5" />
+                      <span>Full Screen Mode</span>
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-605 text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                  Apps Script URL <HelpCircle className="w-3" />
-                </label>
-                <input 
-                  type="text" 
-                  value={tempAppsScriptUrl} 
-                  onChange={(e) => setTempAppsScriptUrl(e.target.value)} 
-                  className="w-full px-4 py-2.5 border border-slate-205 border-slate-200 focus:border-slate-400 rounded-xl text-sm font-mono text-slate-700 bg-slate-50/50 focus:bg-white transition-all outline-none focus:ring-2 focus:ring-slate-200"
-                  placeholder="https://script.google.com/macros/s/.../exec"
-                />
+              {/* SECTION 2: SHEETS CONNECTION */}
+              <div className="space-y-4">
+                <h3 className="text-xs font-black uppercase text-slate-400 tracking-wider flex items-center gap-1.5 border-b border-slate-100 pb-2">
+                  <Settings className="w-3.5 h-3.5 text-slate-550 text-slate-500" />
+                  Google Sheets Connection
+                </h3>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-605 text-slate-700 uppercase tracking-wider flex items-center gap-1">
+                    Google Sheet ID <HelpCircle className="w-3" />
+                  </label>
+                  <input 
+                    type="text" 
+                    value={tempSheetId} 
+                    onChange={(e) => setTempSheetId(e.target.value)} 
+                    className="w-full px-4 py-2.5 border border-slate-200 focus:border-slate-400 rounded-xl text-sm font-mono text-slate-700 bg-slate-50/50 focus:bg-white transition-all outline-none focus:ring-2 focus:ring-slate-200"
+                    placeholder="1IoGYxMMOrVzkHyqp1n2InXgf14jLJUEfKZMX5MWVBj4"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-605 text-slate-700 uppercase tracking-wider flex items-center gap-1">
+                    Apps Script URL <HelpCircle className="w-3" />
+                  </label>
+                  <input 
+                    type="text" 
+                    value={tempAppsScriptUrl} 
+                    onChange={(e) => setTempAppsScriptUrl(e.target.value)} 
+                    className="w-full px-4 py-2.5 border border-slate-200 focus:border-slate-400 rounded-xl text-sm font-mono text-slate-700 bg-slate-50/50 focus:bg-white transition-all outline-none focus:ring-2 focus:ring-slate-200"
+                    placeholder="https://script.google.com/macros/s/.../exec"
+                  />
+                </div>
+
+                <div className="bg-gradient-to-br from-slate-50 to-white p-4.5 rounded-xl border border-slate-100 shadow-inner">
+                  <p className="text-[11px] font-extrabold text-slate-850 text-slate-800 mb-2 flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse" />
+                    Setup Requirements
+                  </p>
+                  <ul className="space-y-1.5 text-[11px] text-slate-550 text-slate-600 font-medium leading-relaxed list-disc pl-4">
+                    <li>Share Google Sheet with <span className="font-bold text-slate-800">"Anyone with the link"</span></li>
+                    <li>Set permission to <span className="font-bold text-slate-800">Viewer</span> for CORS compatibility</li>
+                    <li>Deploy Apps Script as Web App with authorization to <span className="font-bold text-slate-800">"Anyone"</span></li>
+                  </ul>
+                </div>
               </div>
 
-              <div className="bg-gradient-to-br from-slate-50 to-white p-5 rounded-xl border border-slate-100 shadow-inner">
-                <p className="text-xs font-extrabold text-slate-700 mb-3 flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse" />
-                  Setup Requirements
-                </p>
-                <ul className="space-y-2 text-[11px] text-slate-600 font-medium leading-relaxed list-disc pl-4">
-                  <li>Share Google Sheet with <span className="font-bold text-slate-800">"Anyone with the link"</span></li>
-                  <li>Set permission level to <span className="font-bold text-slate-800">Viewer</span> for CORS compatibility</li>
-                  <li>Deploy Apps Script as Web App with <span className="font-bold text-slate-800">"Execute as Me"</span></li>
-                  <li>Copy the deployment URL into the field above</li>
-                </ul>
-              </div>
-
-              {/* Real-time Sheets API Auditor Console */}
-              <div className="space-y-2 border-t border-slate-150 pt-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Sheet Service API Auditor Log</span>
+              {/* SECTION 3: SYSTEM AUDIT LOGGER */}
+              <div className="space-y-3 pt-1">
+                <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                  <span className="text-xs font-black uppercase text-slate-400 tracking-wider flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5" />
+                    Sheets Sync Transaction Log
+                  </span>
                   <button 
                     onClick={handleClearLogs}
-                    className="text-[10px] text-rose-600 font-extrabold rounded hover:bg-rose-50 px-2 py-0.5 border border-rose-100 transition-all"
+                    className="text-[10px] text-rose-600 font-extrabold rounded-lg hover:bg-rose-50 px-2.5 py-1 border border-rose-100 transition-all cursor-pointer"
                   >
                     Clear Logs
                   </button>
                 </div>
-                <div className="bg-slate-900 border border-slate-950 text-slate-100 p-3 rounded-xl font-mono text-[9px] max-h-[140px] overflow-y-auto space-y-2 shadow-inner">
+                <div className="bg-slate-900 border border-slate-950 text-slate-100 p-3.5 rounded-xl font-mono text-[9px] max-h-[140px] overflow-y-auto space-y-2 shadow-inner">
                   {logsList.length === 0 ? (
                     <div className="text-slate-500 italic text-center py-2">No transactions recorded in the current session.</div>
                   ) : (
@@ -394,7 +411,7 @@ function AppContent() {
                           <span>{lg.timestamp}</span>
                           <span className={`px-1 rounded ${
                             lg.type === "SUCCESS" ? "bg-emerald-500/10 text-emerald-400 font-extrabold" : 
-                            lg.type === "ERROR" ? "bg-rose-500/10 text-rose-450 text-rose-400 font-extrabold" : 
+                            lg.type === "ERROR" ? "bg-rose-500/10 text-rose-400 font-extrabold" : 
                             "bg-sky-500/10 text-sky-400"
                           }`}>
                             {lg.type}
@@ -409,10 +426,11 @@ function AppContent() {
               </div>
             </div>
 
-            <div className="bg-slate-50/80 px-6 py-4 border-t border-slate-100 flex gap-3 justify-end">
+            {/* Actions Footer */}
+            <div className="bg-slate-50/80 px-6 py-4.5 border-t border-slate-100 flex gap-3 justify-end shrink-0">
               <button 
                 onClick={() => setSettingsOpen(false)}
-                className="px-5 py-2.5 bg-white hover:bg-slate-50 text-slate-600 text-xs font-bold rounded-xl border border-slate-200 transition-all hover:shadow-sm cursor-pointer"
+                className="px-5 py-2.5 bg-white hover:bg-slate-55 hover:bg-slate-100 text-slate-600 text-xs font-bold rounded-xl border border-slate-200 transition-all hover:shadow-sm cursor-pointer"
               >
                 Cancel
               </button>
@@ -420,7 +438,7 @@ function AppContent() {
                 onClick={handleSaveSettings}
                 className="px-5 py-2.5 bg-gradient-to-r from-slate-800 to-slate-700 hover:from-slate-900 hover:to-slate-800 text-white text-xs font-bold rounded-xl shadow-md shadow-slate-900/10 transition-all duration-200 flex items-center gap-2 cursor-pointer"
               >
-                <Check className="w-4 h-4" /> Save Connection
+                <Check className="w-4 h-4" /> Save Configuration
               </button>
             </div>
           </div>
@@ -435,7 +453,8 @@ function AppContent() {
             <Route path="/salary" element={<EnterSalary />} />
             <Route path="/employees" element={<ManageEmployees />} />
             <Route path="/leave" element={<LeaveBalance />} />
-            <Route path="/pay" element={<PayDetails />} />
+            <Route path="/pay" element={<PayDetails defaultTab="individual" />} />
+            <Route path="/reports" element={<PayDetails defaultTab="rangeReport" />} />
           </Routes>
         </div>
       </main>

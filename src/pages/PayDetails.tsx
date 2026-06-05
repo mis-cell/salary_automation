@@ -121,7 +121,7 @@ const themeConfigs: Record<"classic" | "emerald" | "crimson" | "cobalt" | "mono"
   }
 };
 
-export default function PayDetails() {
+export default function PayDetails({ defaultTab = "individual" }: { defaultTab?: "individual" | "rangeReport" }) {
   const { accessToken } = useAuth();
   const [employees, setEmployees] = useState<EmployeeRow[]>([]);
   const [leaveBalances, setLeaveBalances] = useState<LeaveBalanceRow[]>([]);
@@ -158,7 +158,12 @@ export default function PayDetails() {
   });
 
   // Navigation Tab State
-  const [activeTab, setActiveTab] = useState<"individual" | "rangeReport">("individual");
+  const [activeTab, setActiveTab] = useState<"individual" | "rangeReport">(defaultTab);
+
+  // Sync tab state when prop changes
+  useEffect(() => {
+    setActiveTab(defaultTab);
+  }, [defaultTab]);
 
   // Range-wise Report states
   const [reportStartMonth, setReportStartMonth] = useState("April");
