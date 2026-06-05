@@ -7,7 +7,7 @@ import EnterSalary from "./pages/EnterSalary";
 import ManageEmployees from "./pages/ManageEmployees";
 import LeaveBalance from "./pages/LeaveBalance";
 import PayDetails from "./pages/PayDetails";
-import { getSheetId, setSheetId, getAppsScriptUrl, setAppsScriptUrl } from "./lib/googleSheetsService";
+import { getSheetId, setSheetId, getAppsScriptUrl, setAppsScriptUrl, getServiceLogs, clearServiceLogs } from "./lib/googleSheetsService";
 import { ThemeProvider, useTheme, themeConfigs, ThemeKey } from "./lib/ThemeContext";
 
 // Modern, gradient-accented NavLink with subtle animation and active state
@@ -57,6 +57,25 @@ function AppContent() {
   const [tempSheetId, setTempSheetId] = useState(getSheetId());
   const [tempAppsScriptUrl, setTempAppsScriptUrl] = useState(getAppsScriptUrl());
   const [isFullScreen, setIsFullScreen] = useState(true);
+  const [logsList, setLogsList] = useState(() => getServiceLogs());
+
+  // Automatically sync/update logs list whenever modal state changes or periodically
+  useEffect(() => {
+    let interval: any;
+    if (settingsOpen) {
+      setLogsList(getServiceLogs());
+      interval = setInterval(() => {
+        setLogsList(getServiceLogs());
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [settingsOpen]);
+
+  const handleClearLogs = (e: React.MouseEvent) => {
+    e.preventDefault();
+    clearServiceLogs();
+    setLogsList([]);
+  };
 
   const handleSaveSettings = () => {
     setSheetId(tempSheetId);
@@ -352,6 +371,41 @@ function AppContent() {
                   <li>Deploy Apps Script as Web App with <span className="font-bold text-slate-800">"Execute as Me"</span></li>
                   <li>Copy the deployment URL into the field above</li>
                 </ul>
+              </div>
+
+              {/* Real-time Sheets API Auditor Console */}
+              <div className="space-y-2 border-t border-slate-150 pt-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Sheet Service API Auditor Log</span>
+                  <button 
+                    onClick={handleClearLogs}
+                    className="text-[10px] text-rose-600 font-extrabold rounded hover:bg-rose-50 px-2 py-0.5 border border-rose-100 transition-all"
+                  >
+                    Clear Logs
+                  </button>
+                </div>
+                <div className="bg-slate-900 border border-slate-950 text-slate-100 p-3 rounded-xl font-mono text-[9px] max-h-[140px] overflow-y-auto space-y-2 shadow-inner">
+                  {logsList.length === 0 ? (
+                    <div className="text-slate-500 italic text-center py-2">No transactions recorded in the current session.</div>
+                  ) : (
+                    logsList.map((lg, i) => (
+                      <div key={i} className="leading-relaxed border-b border-white/5 pb-1.5 last:border-0 last:pb-0">
+                        <div className="flex justify-between text-[8px] text-slate-400 mb-0.5">
+                          <span>{lg.timestamp}</span>
+                          <span className={`px-1 rounded ${
+                            lg.type === "SUCCESS" ? "bg-emerald-500/10 text-emerald-400 font-extrabold" : 
+                            lg.type === "ERROR" ? "bg-rose-500/10 text-rose-450 text-rose-400 font-extrabold" : 
+                            "bg-sky-500/10 text-sky-400"
+                          }`}>
+                            {lg.type}
+                          </span>
+                        </div>
+                        <div className="text-indigo-300 font-bold uppercase tracking-wider text-[8px] mb-0.5">{lg.action}</div>
+                        <div className="text-white font-medium text-[10px] whitespace-pre-wrap select-all">{lg.details}</div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             </div>
 

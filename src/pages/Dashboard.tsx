@@ -14,14 +14,22 @@ export default function Dashboard() {
     setLoading(true);
     setError(null);
     try {
-      const [empData, summaryData] = await Promise.all([
-        fetchEmployeeDetails().catch(() => [] as EmployeeRow[]),
-        fetchDashboardSummary().catch(() => [] as DashboardSummaryRow[])
-      ]);
+      // 1. Fetch Employee Details
+      const empData = await fetchEmployeeDetails();
       setEmployees(empData);
+    } catch (err: any) {
+      console.error("Employee details fetch fail:", err);
+      setError("Unable to sync employee details from 'emp_details' sheet. " + (err.message || String(err)));
+    }
+
+    try {
+      // 2. Fetch Dashboard Summary
+      const summaryData = await fetchDashboardSummary();
       setSummaryRows(summaryData);
     } catch (err: any) {
-      setError("Unable to sync dashboard analytics with Google Sheets. Please confirm sheet permissions.");
+      console.error("Dashboard summary fetch fail:", err);
+      // If we don't already have an error, set this one
+      setError(prev => prev ? prev + " | " + (err.message || String(err)) : "Unable to sync Calculation Run History: " + (err.message || String(err)));
     } finally {
       setLoading(false);
     }
@@ -67,6 +75,32 @@ export default function Dashboard() {
           <span className="text-[10px] text-emerald-800 font-black uppercase tracking-wider">Live G-Sheets Connected</span>
         </div>
       </div>
+
+      {error && (
+        <div className="p-5 bg-amber-50 border border-amber-200 rounded-[24px] flex flex-col gap-3 shadow-sm animate-in zoom-in-95 duration-200">
+          <div className="flex items-center gap-2 text-amber-900 font-extrabold text-sm">
+            <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
+            Spreadsheet Synchronization Notice
+          </div>
+          <p className="text-xs text-amber-800 leading-relaxed font-semibold">
+            {error}
+          </p>
+          <div className="text-[11px] text-amber-700 bg-amber-100/40 p-3 rounded-xl space-y-1.5">
+            <p className="font-extrabold text-amber-900">💡 Troubleshooting Guide:</p>
+            <ul className="list-disc list-inside space-y-1 font-semibold pl-1">
+              <li>
+                <strong>Sheet Permissions Needed</strong>: Make sure your Google Spreadsheet is visible to the app. In your Google Sheet, click the blue <strong>"Share"</strong> button (top-right) and change General Access to <strong>"Anyone with the link can view"</strong>.
+              </li>
+              <li>
+                <strong>Initialize System Sheets</strong>: If your spreadsheet does not have the <code>dashboard_summary</code> tab yet, open your Google Spreadsheet, look at the top menu bar, and click <strong>AutoPay Engine</strong> &rarr; <strong>1. Initialize System Sheets</strong> to generate the necessary tabs automatically.
+              </li>
+              <li>
+                <strong>Run a Calculation First</strong>: The history table loads directly from the <strong>dashboard_summary</strong> tab. Once you run your first payroll calculation from the <em>"Calculate Wages"</em> page and click <strong>"Verify Calculations & Run Payroll"</strong>, a row is automatically saved here!
+              </li>
+            </ul>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex flex-col items-center justify-center p-24 bg-white border border-slate-200/80 rounded-[32px] shadow-premium">

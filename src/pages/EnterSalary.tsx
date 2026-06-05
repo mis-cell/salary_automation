@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Loader2, Play, CheckCircle2, FileText, AlertCircle, ExternalLink, RefreshCw, Settings, Info, Keyboard, Send, AppWindow } from "lucide-react";
-import { fetchEmployeeDetails, fetchLeaveBalances, EmployeeRow, LeaveBalanceRow, getSheetId, getAppsScriptUrl } from "../lib/googleSheetsService";
+import { fetchEmployeeDetails, fetchLeaveBalances, EmployeeRow, LeaveBalanceRow, getSheetId, getAppsScriptUrl, addServiceLog } from "../lib/googleSheetsService";
 import ConfirmDialog from "../components/ConfirmDialog";
 
 interface EditableRow {
@@ -264,26 +264,32 @@ export default function EnterSalary() {
     setLoading(true);
     setResults([]);
     setNotification({ message: "Connecting to Apps Script Engine...", type: "info" });
+    
+    addServiceLog("INFO", "WRITE_PROCESS_SALARY_START", `Sending payroll payload to Apps Script for: ${month} ${year}. ${selectedEmpCodes.length} employees selected.`);
 
     try {
       const selectedRows = rows.filter(r => selectedEmpCodes.includes(r.empCode));
       // Send both the standard config AND the edited grid salaries back so the backend has access to custom-filled rows
+      const payload = {
+        action: "PROCESS_SALARY",
+        month: month,
+        year: year,
+        payableDays: Number(defaultPayableDays),
+        employeesList: selectedRows, // Include custom edited entries (only selected)
+        data: selectedRows,           // Compatibility for GoogleAppsScript.js
+        selectedEmpCodes: selectedEmpCodes // exact list of employee codes to process
+      };
+
       const response = await fetch(scriptUrl, {
         method: "POST",
         mode: "no-cors", // Trigger no-cors as Google Web App redirection usually causes preflight blocks locally
         headers: {
           "Content-Type": "text/plain;charset=utf-8"
         },
-        body: JSON.stringify({
-          action: "PROCESS_SALARY",
-          month: month,
-          year: year,
-          payableDays: Number(defaultPayableDays),
-          employeesList: selectedRows, // Include custom edited entries (only selected)
-          data: selectedRows,           // Compatibility for GoogleAppsScript.js
-          selectedEmpCodes: selectedEmpCodes // exact list of employee codes to process
-        })
+        body: JSON.stringify(payload)
       });
+
+      addServiceLog("SUCCESS", "WRITE_PROCESS_SALARY_SENT", `Transmitted JSON payload of ${selectedRows.length} employee records to Google Apps Script. Server will compute payslips.`);
 
       setNotification({ message: `Generating payslips for ${selectedEmpCodes.length} selected employee(s). Rendering PDFs on Drive. Please wait...`, type: "info" });
 
@@ -291,15 +297,18 @@ export default function EnterSalary() {
       let attempts = 0;
       const interval = setInterval(async () => {
         attempts++;
+        addServiceLog("INFO", "WRITE_PROCESS_SALARY_POLL", `Polling retry #${attempts}/4 to retrieve processed calculation statuses from spreadsheet...`);
         await fetchProcessedData(month, year);
         if (attempts >= 4) {
           clearInterval(interval);
           setLoading(false);
+          addServiceLog("SUCCESS", "WRITE_PROCESS_SALARY_COMPLETE", `Completed polling sync cycles for ${month} ${year} payslip status.`);
           setNotification({ message: "Payroll pipeline executed successfully! Pulling latest generated PDF drive links.", type: "success" });
         }
       }, 3000);
 
     } catch (err: any) {
+      addServiceLog("ERROR", "WRITE_PROCESS_SALARY_FAILED", `Failed to transmit salary update. Reason: ${err.message || String(err)}`);
       setNotification({ message: "Payroll pipeline communication failed: " + err.message, type: "error" });
       setLoading(false);
     }

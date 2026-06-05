@@ -193,10 +193,10 @@ export default function LeaveBalance() {
                     <th className="py-2.5 px-4 text-center">Opening SL</th>
                     <th className="py-2.5 px-4 text-center text-emerald-800 bg-emerald-50/20">PL Earned</th>
                     <th className="py-2.5 px-4 text-center text-emerald-800 bg-emerald-50/20">SL Earned</th>
-                    <th className="py-2.5 px-4 text-center text-rose-800 bg-rose-50/20">Used PL</th>
-                    <th className="py-2.5 px-4 text-center text-rose-800 bg-rose-50/20 border-r border-slate-200">Used SL</th>
-                    <th className="py-2.5 px-4 text-center text-indigo-900 bg-indigo-50/10 font-bold">Closing PL</th>
-                    <th className="py-2.5 px-5 text-center text-indigo-900 bg-indigo-50/10 font-bold">Closing SL</th>
+                    <th className="py-2.5 px-4 text-center text-rose-800 bg-rose-50/20">Availed PL</th>
+                    <th className="py-2.5 px-4 text-center text-rose-800 bg-rose-50/20 border-r border-slate-200">Availed SL</th>
+                    <th className="py-2.5 px-4 text-center text-indigo-900 bg-indigo-50/10 font-bold">Bal PL</th>
+                    <th className="py-2.5 px-5 text-center text-indigo-900 bg-indigo-50/10 font-bold">Bal SL</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs font-semibold text-slate-700">

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "../lib/AuthContext";
-import { fetchEmployeeDetails, fetchLeaveBalances, EmployeeRow, LeaveBalanceRow } from "../lib/googleSheetsService";
-import { FileText, Printer, AlertCircle, Loader2, IndianRupee, Search, ChevronRight, Check, X, ShieldAlert, ArrowUpDown, ArrowUp, ArrowDown, Palette, Send, Mail } from "lucide-react";
+import { fetchEmployeeDetails, fetchLeaveBalances, fetchSheetRows, EmployeeRow, LeaveBalanceRow } from "../lib/googleSheetsService";
+import { FileText, Printer, AlertCircle, Loader2, IndianRupee, Search, ChevronRight, Check, X, ShieldAlert, ArrowUpDown, ArrowUp, ArrowDown, Palette, Send, Mail, Calendar, Download, BarChart3, Users as UsersIcon } from "lucide-react";
 
 // Robust Indian currency translation to text format
 function numberToWords(num: number): string {
@@ -157,6 +157,21 @@ export default function PayDetails() {
     return "classic";
   });
 
+  // Navigation Tab State
+  const [activeTab, setActiveTab] = useState<"individual" | "rangeReport">("individual");
+
+  // Range-wise Report states
+  const [reportStartMonth, setReportStartMonth] = useState("April");
+  const [reportStartYear, setReportStartYear] = useState("2026");
+  const [reportEndMonth, setReportEndMonth] = useState("June");
+  const [reportEndYear, setReportEndYear] = useState("2026");
+  const [reportEmpFilter, setReportEmpFilter] = useState("ALL");
+  const [reportRecords, setReportRecords] = useState<any[]>([]);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
+  const [reportSuccessLog, setReportSuccessLog] = useState<string[]>([]);
+  const [reportFailedLog, setReportFailedLog] = useState<string[]>([]);
+
   const printAreaRef = useRef<HTMLDivElement>(null);
 
   const getDaysInMonth = (monthName: string, yearStr: string): number => {
@@ -297,6 +312,194 @@ export default function PayDetails() {
   // Standard printing utility
   const handlePrint = () => {
     window.print();
+  };
+
+  const MONTH_NAMES = [
+    "January", "February", "March", "April", "May", "June", 
+    "July", "August", "September", "October", "November", "December"
+  ];
+
+  const getMonthsInRange = (
+    startM: string, 
+    startYStr: string, 
+    endM: string, 
+    endYStr: string
+  ): { month: string; year: string }[] => {
+    const startY = parseInt(startYStr) || 2026;
+    const endY = parseInt(endYStr) || 2026;
+    
+    const startMIdx = MONTH_NAMES.indexOf(startM);
+    const endMIdx = MONTH_NAMES.indexOf(endM);
+    
+    if (startMIdx === -1 || endMIdx === -1) return [];
+    
+    const result: { month: string; year: string }[] = [];
+    
+    let currentYear = startY;
+    let currentMonthIdx = startMIdx;
+    
+    while (currentYear < endY || (currentYear === endY && currentMonthIdx <= endMIdx)) {
+      result.push({
+        month: MONTH_NAMES[currentMonthIdx],
+        year: String(currentYear)
+      });
+      
+      currentMonthIdx++;
+      if (currentMonthIdx > 11) {
+        currentMonthIdx = 0;
+        currentYear++;
+      }
+    }
+    
+    return result;
+  };
+
+  const handleGenerateRangeReport = async () => {
+    setReportLoading(true);
+    setReportError(null);
+    setReportSuccessLog([]);
+    setReportFailedLog([]);
+    setReportRecords([]);
+
+    try {
+      const monthYearTargets = getMonthsInRange(reportStartMonth, reportStartYear, reportEndMonth, reportEndYear);
+      if (monthYearTargets.length === 0) {
+        setReportError("The selected start date is after the end date.");
+        setReportLoading(false);
+        return;
+      }
+
+      const records: any[] = [];
+      const successful: string[] = [];
+      const failed: string[] = [];
+
+      for (const target of monthYearTargets) {
+        try {
+          const tabName = `${target.month}_${target.year}`;
+          const rawRows = await fetchSheetRows(tabName);
+          if (rawRows.length === 0) {
+            failed.push(`${target.month} ${target.year} (No data in sheet)`);
+            continue;
+          }
+          
+          // Filter out header
+          const filteredRows = rawRows.filter(row => row.length > 0 && String(row[0]).trim().toUpperCase() !== "EMP_CODE" && String(row[0]).trim().toUpperCase() !== "EMP CODE" && String(row[0]).trim() !== "");
+
+          const numVal = (val: any) => {
+            if (val === null || val === undefined) return 0;
+            const clean = String(val).replace(/[^\d.-]/g, '');
+            const parsed = parseFloat(clean);
+            return isNaN(parsed) ? 0 : parsed;
+          };
+
+          const mapped = filteredRows.map(row => {
+            return {
+              empCode: row[0] ? String(row[0]).trim() : "",
+              name: row[1] ? String(row[1]).trim() : "",
+              month: target.month,
+              year: target.year,
+              type: row[2] ? String(row[2]).trim() : "",
+              payableDays: numVal(row[3]),
+              actualBasic: numVal(row[4]),
+              payableBasic: numVal(row[5]),
+              actualHra: numVal(row[6]),
+              payableHra: numVal(row[7]),
+              actualGross: numVal(row[8]),
+              payableGross: numVal(row[9]),
+              actualConsol: numVal(row[10]),
+              payableConsol: numVal(row[11]),
+              ptax: numVal(row[12]),
+              pf: numVal(row[13]),
+              esi: numVal(row[14]),
+              netPay: numVal(row[15]),
+            };
+          }).filter(item => item.empCode !== "" && item.name !== "");
+
+          records.push(...mapped);
+          successful.push(`${target.month} ${target.year}`);
+        } catch (err: any) {
+          console.warn(`Error compiling tab ${target.month}_${target.year}:`, err);
+          failed.push(`${target.month} ${target.year}`);
+        }
+      }
+
+      // Filter by Employee if chosen
+      let finalRecords = records;
+      if (reportEmpFilter !== "ALL") {
+        finalRecords = records.filter(rec => rec.empCode === reportEmpFilter);
+      }
+
+      setReportRecords(finalRecords);
+      setReportSuccessLog(successful);
+      setReportFailedLog(failed);
+
+      if (successful.length === 0) {
+        setReportError("Checked " + monthYearTargets.length + " month tabs, but none could be loaded because no matching tabs exist in Google Sheets yet.");
+      }
+    } catch (err: any) {
+      setReportError(err.message || "An unexpected error occurred compiling the range report.");
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
+  const handleDownloadCSV = () => {
+    if (reportRecords.length === 0) return;
+
+    // Build headers
+    const headers = [
+      "Month",
+      "Year",
+      "Employee Code",
+      "Employee Name",
+      "Salary Type",
+      "Payable Days",
+      "Payable Basic (Rupees)",
+      "Payable HRA (Rupees)",
+      "Gross Pay (Rupees)",
+      "Professional Tax (Rupees)",
+      "PF (Rupees)",
+      "ESI (Rupees)",
+      "Net Payable (Rupees)"
+    ];
+
+    const csvRows = reportRecords.map(rec => [
+      rec.month,
+      rec.year,
+      `"${rec.empCode}"`,
+      `"${rec.name.replace(/"/g, '""')}"`,
+      rec.type,
+      rec.payableDays,
+      rec.payableBasic || rec.payableConsol || 0,
+      rec.payableHra,
+      rec.payableGross,
+      rec.ptax,
+      rec.pf,
+      rec.esi,
+      rec.netPay
+    ]);
+
+    const csvContent = [headers.join(","), ...csvRows.map(row => row.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Yashoda_Payroll_Report_${reportStartMonth}_${reportStartYear}_to_${reportEndMonth}_${reportEndYear}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const getTopPaidEmployees = () => {
+    const grouped: Record<string, { name: string; empCode: string; totalNet: number }> = {};
+    reportRecords.forEach(rec => {
+      const key = rec.empCode;
+      if (!grouped[key]) {
+        grouped[key] = { name: rec.name, empCode: rec.empCode, totalNet: 0 };
+      }
+      grouped[key].totalNet += rec.netPay || 0;
+    });
+    return Object.values(grouped).sort((a,b) => b.totalNet - a.totalNet).slice(0, 5);
   };
 
   // Safe Math Computations base rates
@@ -469,6 +672,37 @@ export default function PayDetails() {
         </button>
       </div>
 
+      {/* Tab Selector Segmented Control */}
+      <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200/50 max-w-md print:hidden my-4">
+        <button
+          onClick={() => setActiveTab("individual")}
+          className={`flex-1 py-2 rounded-xl text-xs font-black tracking-wide text-center transition-all cursor-pointer flex items-center justify-center gap-2 ${
+            activeTab === "individual"
+              ? "bg-[#0c1322] text-white shadow-sm"
+              : "text-slate-600 hover:text-slate-900 hover:bg-slate-50/50"
+          }`}
+        >
+          <FileText className="w-3.5 h-3.5" />
+          <span>Individual Slips</span>
+        </button>
+        <button
+          onClick={() => {
+            setActiveTab("rangeReport");
+            if (reportRecords.length === 0) {
+              handleGenerateRangeReport();
+            }
+          }}
+          className={`flex-1 py-1.5 rounded-xl text-xs font-black tracking-wide text-center transition-all cursor-pointer flex items-center justify-center gap-2 ${
+            activeTab === "rangeReport"
+              ? "bg-[#0c1322] text-white shadow-sm"
+              : "text-slate-600 hover:text-slate-900 hover:bg-slate-50/50"
+          }`}
+        >
+          <BarChart3 className="w-3.5 h-3.5" />
+          <span>Range Pay Ledger</span>
+        </button>
+      </div>
+
       {error ? (
         <div className="bg-rose-50 border border-rose-200 text-rose-900 p-5 rounded-[20px] flex gap-4 items-start shadow-xs print:hidden">
           <AlertCircle className="w-5 h-5 text-rose-600 mt-0.5 shrink-0" />
@@ -482,7 +716,7 @@ export default function PayDetails() {
           <Loader2 className="w-8 h-8 text-slate-900 animate-spin mb-3" />
           <p className="text-slate-500 font-bold text-xs">Loading employee finance master cards ...</p>
         </div>
-      ) : (
+      ) : activeTab === "individual" ? (
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
           
           {/* Left Panel: Employee picker list (xl:col-span-4) */}
@@ -882,7 +1116,7 @@ export default function PayDetails() {
                     </span>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs font-semibold text-slate-800">
                       <div className="flex justify-between pr-2">
-                        <span className="text-slate-500">Used PL :</span>
+                        <span className="text-slate-500">Availed PL :</span>
                         <span className="font-black text-slate-950 font-mono">{leaveInfo.usedPl}</span>
                       </div>
                       <div className="flex justify-between pr-2">
@@ -890,7 +1124,7 @@ export default function PayDetails() {
                         <span className="font-black text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-100 font-mono">{leaveInfo.plBalance}</span>
                       </div>
                       <div className="flex justify-between pr-2">
-                        <span className="text-slate-500">Used SL :</span>
+                        <span className="text-slate-500">Availed SL :</span>
                         <span className="font-black text-slate-950 font-mono">{leaveInfo.usedSl}</span>
                       </div>
                       <div className="flex justify-between">
@@ -968,12 +1202,8 @@ export default function PayDetails() {
 
                   {/* Summary Totals area */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5 text-xs font-extrabold">
-                    <div className="border border-slate-950 rounded-xl p-3 flex flex-col gap-2 bg-slate-50/50">
-                      <div className="flex justify-between items-center text-slate-700">
-                        <span>Total Pay :</span>
-                        <span className="font-mono">{formatCurrency(totalPay)}</span>
-                      </div>
-                      <div className="flex justify-between items-center text-emerald-800 border-t border-slate-200 pt-2 font-black">
+                    <div className="border border-slate-950 rounded-xl p-3 flex flex-col justify-center bg-slate-50/50">
+                      <div className="flex justify-between items-center text-emerald-800 font-black">
                         <span>Gross Pay :</span>
                         <span className="font-mono text-[13px]">{formatCurrency(grossPay)}</span>
                       </div>
@@ -1032,6 +1262,316 @@ export default function PayDetails() {
             )}
 
           </div>
+
+        </div>
+      ) : (
+        /* Render Range-wise Payroll Report Section */
+        <div className="space-y-6 animate-in fade-in duration-300">
+          
+          {/* Controls Bento Area */}
+          <div className="bg-white border border-slate-200 p-6 rounded-[24px] shadow-premium flex flex-col gap-5 print:hidden">
+            <div className="border-b border-slate-100 pb-3 flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded bg-indigo-600 inline-block"></span>
+              <span className="text-xs font-black text-slate-900 uppercase tracking-wide">Report Generator Range Settings</span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              
+              {/* Start Date selection */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] text-slate-400 uppercase font-black tracking-wider block">Start Month</label>
+                <div className="flex gap-2">
+                  <select 
+                    value={reportStartMonth}
+                    onChange={(e) => setReportStartMonth(e.target.value)}
+                    className="flex-1 px-3 py-2.5 bg-slate-50 border border-slate-200 focus:border-indigo-400 rounded-xl text-xs font-bold outline-none cursor-pointer"
+                  >
+                    {MONTH_NAMES.map(m => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                  <select 
+                    value={reportStartYear}
+                    onChange={(e) => setReportStartYear(e.target.value)}
+                    className="px-3 py-2.5 bg-slate-50 border border-slate-200 focus:border-indigo-400 rounded-xl text-xs font-bold outline-none cursor-pointer"
+                  >
+                    {["2024", "2025", "2026", "2027", "2028"].map(yr => (
+                      <option key={yr} value={yr}>{yr}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* End Date selection */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] text-slate-400 uppercase font-black tracking-wider block">End Month</label>
+                <div className="flex gap-2">
+                  <select 
+                    value={reportEndMonth}
+                    onChange={(e) => setReportEndMonth(e.target.value)}
+                    className="flex-1 px-3 py-2.5 bg-slate-50 border border-slate-200 focus:border-indigo-400 rounded-xl text-xs font-bold outline-none cursor-pointer"
+                  >
+                    {MONTH_NAMES.map(m => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                  <select 
+                    value={reportEndYear}
+                    onChange={(e) => setReportEndYear(e.target.value)}
+                    className="px-3 py-2.5 bg-slate-50 border border-slate-200 focus:border-indigo-400 rounded-xl text-xs font-bold outline-none cursor-pointer"
+                  >
+                    {["2024", "2025", "2026", "2027", "2028"].map(yr => (
+                      <option key={yr} value={yr}>{yr}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Employee selection filter */}
+              <div className="space-y-1.5 md:col-span-1">
+                <label className="text-[10px] text-slate-400 uppercase font-black tracking-wider block">Employee Filter</label>
+                <select 
+                  value={reportEmpFilter}
+                  onChange={(e) => setReportEmpFilter(e.target.value)}
+                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 focus:border-indigo-400 rounded-xl text-xs font-bold outline-none cursor-pointer"
+                >
+                  <option value="ALL">All Employees</option>
+                  {employees.map(emp => (
+                    <option key={emp.empCode} value={emp.empCode}>{emp.name} ({emp.empCode})</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Generate Button */}
+              <div className="flex items-end">
+                <button
+                  onClick={handleGenerateRangeReport}
+                  disabled={reportLoading}
+                  className="w-full py-2.5 bg-[#0c1322] hover:bg-[#1a253d] text-white text-xs font-black rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {reportLoading ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <BarChart3 className="w-3.5 h-3.5" />
+                  )}
+                  <span>Compile Range Report</span>
+                </button>
+              </div>
+
+              {/* Download CSV button */}
+              <div className="flex items-end">
+                <button
+                  onClick={handleDownloadCSV}
+                  disabled={reportRecords.length === 0}
+                  className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-100 disabled:text-slate-400 text-white text-xs font-black rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download CSV</span>
+                </button>
+              </div>
+
+            </div>
+          </div>
+
+          {/* Error and Warnings display */}
+          {reportError && (
+            <div className="bg-rose-50 border border-rose-200 text-rose-900 p-5 rounded-[20px] flex gap-4 items-start shadow-xs">
+              <AlertCircle className="w-5 h-5 text-rose-600 mt-0.5 shrink-0" />
+              <div>
+                <h3 className="font-extrabold text-sm mb-1">Report Compilation Notice</h3>
+                <p className="text-rose-700 text-xs leading-relaxed font-semibold">{reportError}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Status checklist log of spreadsheet checks */}
+          {(reportSuccessLog.length > 0 || reportFailedLog.length > 0) && (
+            <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl flex flex-wrap gap-4 text-[10px] uppercase font-black tracking-widest text-slate-500 justify-between items-center">
+              <div className="flex flex-wrap gap-2.5">
+                <span>Spreadsheet Status Logs:</span>
+                {reportSuccessLog.map(log => (
+                  <span key={log} className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-100">{log} loaded</span>
+                ))}
+                {reportFailedLog.map(log => (
+                  <span key={log} className="px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-100">{log} error/no slips</span>
+                ))}
+              </div>
+              <span className="text-slate-400 text-[9px] font-bold">Total Matching Rows: <span className="text-slate-800 font-extrabold">{reportRecords.length}</span></span>
+            </div>
+          )}
+
+          {/* Output Content */}
+          {reportLoading ? (
+            <div className="flex flex-col items-center justify-center py-24 bg-white border border-slate-200 rounded-[24px] shadow-premium">
+              <Loader2 className="w-10 h-10 text-slate-800 animate-spin mb-3.5" />
+              <p className="text-slate-650 text-xs font-black tracking-wide uppercase">Reading Google Spreadsheet historical salary tabs ...</p>
+              <p className="text-slate-450 text-[10px] mt-1 font-bold">Querying months matching your range config...</p>
+            </div>
+          ) : reportRecords.length > 0 ? (
+            <div className="space-y-6">
+              
+              {/* Analytics Summary Row */}
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+                <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm text-center">
+                  <span className="text-[10px] text-slate-400 font-black block uppercase tracking-wide">Net Disbursed</span>
+                  <span className="text-lg font-black text-slate-900 font-mono block mt-1">{formatCurrency(reportRecords.reduce((sum, r) => sum + (r.netPay || 0), 0))}</span>
+                </div>
+                <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm text-center">
+                  <span className="text-[10px] text-slate-400 font-black block uppercase tracking-wide">Gross Wages</span>
+                  <span className="text-lg font-black text-indigo-700 font-mono block mt-1">{formatCurrency(reportRecords.reduce((sum, r) => sum + (r.payableGross || 0), 0))}</span>
+                </div>
+                <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm text-center">
+                  <span className="text-[10px] text-slate-400 font-black block uppercase tracking-wide">Total P Tax</span>
+                  <span className="text-lg font-black text-rose-700 font-mono block mt-1">{formatCurrency(reportRecords.reduce((sum, r) => sum + (r.ptax || 0), 0))}</span>
+                </div>
+                <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm text-center">
+                  <span className="text-[10px] text-slate-400 font-black block uppercase tracking-wide">Total PF Contrib</span>
+                  <span className="text-lg font-black text-rose-700 font-mono block mt-1">{formatCurrency(reportRecords.reduce((sum, r) => sum + (r.pf || 0), 0))}</span>
+                </div>
+                <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm text-center col-span-2 lg:col-span-1">
+                  <span className="text-[10px] text-slate-400 font-black block uppercase tracking-wide">Total ESI Contrib</span>
+                  <span className="text-lg font-black text-rose-700 font-mono block mt-1">{formatCurrency(reportRecords.reduce((sum, r) => sum + (r.esi || 0), 0))}</span>
+                </div>
+              </div>
+
+              {/* Graphic Visualizations Panels ("with gar") */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                
+                {/* 1. Monthly totals trend */}
+                <div className="bg-white border border-slate-200 p-6 rounded-[24px] shadow-sm">
+                  <div className="flex items-center gap-2 mb-4 border-b border-slate-100 pb-2">
+                    <BarChart3 className="w-5 h-5 text-slate-800" />
+                    <span className="text-xs font-black text-slate-900 uppercase tracking-wide">Monthly Payroll Trends</span>
+                  </div>
+
+                  <div className="space-y-4">
+                    {getMonthsInRange(reportStartMonth, reportStartYear, reportEndMonth, reportEndYear)
+                      .map(target => {
+                        const recs = reportRecords.filter(r => r.month === target.month && r.year === target.year);
+                        const grossPay = recs.reduce((sum, r) => sum + (r.payableGross || 0), 0);
+                        const netPay = recs.reduce((sum, r) => sum + (r.netPay || 0), 0);
+                        
+                        return { month: target.month, year: target.year, grossPay, netPay, count: recs.length };
+                      })
+                      .filter(t => t.count > 0)
+                      .map((t, idx, arr) => {
+                        const maxVal = Math.max(...arr.map(x => x.grossPay), 1);
+                        const netPercent = Math.min(100, Math.max(5, (t.netPay / maxVal) * 100));
+                        const grossPercent = Math.min(100, Math.max(5, (t.grossPay / maxVal) * 100));
+
+                        return (
+                          <div key={idx} className="border-b border-slate-100 pb-3 last:border-0 last:pb-0">
+                            <div className="flex justify-between items-center text-xs font-bold text-slate-700 mb-1.5">
+                              <span className="font-extrabold text-slate-900">{t.month} {t.year} <span className="text-[10px] text-slate-400">({t.count} emp)</span></span>
+                              <span className="font-mono text-[11px] text-slate-600">G: {formatCurrency(t.grossPay)} | N: {formatCurrency(t.netPay)}</span>
+                            </div>
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[8px] text-slate-400 font-black uppercase w-8 shrink-0">Gross</span>
+                                <div className="flex-1 bg-slate-100 h-2 rounded-full overflow-hidden">
+                                  <div className="bg-indigo-600 h-full rounded-full transition-all duration-500" style={{ width: `${grossPercent}%` }} />
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[8px] text-slate-400 font-black uppercase w-8 shrink-0">Net</span>
+                                <div className="flex-1 bg-slate-100 h-2 rounded-full overflow-hidden">
+                                  <div className="bg-emerald-500 h-full rounded-full transition-all duration-500" style={{ width: `${netPercent}%` }} />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    }
+                  </div>
+                </div>
+
+                {/* 2. Top paid employees */}
+                <div className="bg-white border border-slate-200 p-6 rounded-[24px] shadow-sm">
+                  <div className="flex items-center gap-2 mb-4 border-b border-slate-100 pb-2">
+                    <UsersIcon className="w-5 h-5 text-slate-800" />
+                    <span className="text-xs font-black text-slate-900 uppercase tracking-wide">Top Compensated Workers (Cumulative Net)</span>
+                  </div>
+
+                  <div className="space-y-4">
+                    {(() => {
+                      const topList = getTopPaidEmployees();
+                      if (topList.length === 0) return <p className="text-slate-400 text-xs">No records available.</p>;
+                      const topMax = topList[0]?.totalNet || 1;
+
+                      return topList.map((worker, index) => {
+                        const percent = Math.min(100, Math.max(5, (worker.totalNet / topMax) * 100));
+                        return (
+                          <div key={worker.empCode} className="space-y-1">
+                            <div className="flex justify-between items-center text-xs font-bold text-slate-700">
+                              <span className="truncate pr-4"><span className="font-extrabold text-slate-900">#{index + 1} {worker.name}</span> <span className="text-[9px] text-slate-400">({worker.empCode})</span></span>
+                              <span className="font-mono text-emerald-800 font-black shrink-0">{formatCurrency(worker.totalNet)}</span>
+                            </div>
+                            <div className="flex-1 bg-slate-100 h-3.5 rounded-lg overflow-hidden">
+                              <div className="bg-gradient-to-r from-emerald-400 to-emerald-600 h-full rounded-lg transition-all duration-350" style={{ width: `${percent}%` }} />
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Data Table of compiling rows */}
+              <div className="bg-white border border-slate-200 rounded-[24px] overflow-hidden shadow-premium">
+                <div className="p-4 bg-slate-50 border-b border-slate-100 text-[10px] font-black uppercase text-slate-500 tracking-wider">
+                  Aggregated Compiled Range Roster Details
+                </div>
+                <div className="overflow-x-auto max-h-[400px]">
+                  <table className="w-full text-left border-collapse whitespace-nowrap">
+                    <thead>
+                      <tr className="border-b border-slate-200 bg-slate-100/40 text-[9px] text-slate-500 uppercase font-black">
+                        <th className="py-2.5 px-4">Cycle</th>
+                        <th className="py-2.5 px-4">Emp Code</th>
+                        <th className="py-2.5 px-4">Employee Name</th>
+                        <th className="py-2.5 px-4 text-center">Type</th>
+                        <th className="py-2.5 px-4 text-center">Days</th>
+                        <th className="py-2.5 px-4 text-center">Basic (₹)</th>
+                        <th className="py-2.5 px-4 text-center">HRA (₹)</th>
+                        <th className="py-2.5 px-4 text-center">Gross (₹)</th>
+                        <th className="py-2.5 px-4 text-center text-rose-800">PTax</th>
+                        <th className="py-2.5 px-4 text-center text-rose-800">PF</th>
+                        <th className="py-2.5 px-4 text-center text-rose-800">ESI</th>
+                        <th className="py-2.5 px-4 text-center text-emerald-800 font-bold border-l border-slate-200">Net Paid</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-[11px] font-bold text-slate-700">
+                      {reportRecords.map((rec, i) => (
+                        <tr key={i} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="py-2 px-4 font-black">{rec.month} {rec.year}</td>
+                          <td className="py-2 px-4 font-mono text-slate-400">{rec.empCode}</td>
+                          <td className="py-2 px-4 text-slate-900 font-extrabold">{rec.name}</td>
+                          <td className="py-2 px-4 text-center text-[10px] font-black select-all bg-slate-50/50">{rec.type}</td>
+                          <td className="py-2 px-4 text-center font-mono">{rec.payableDays}</td>
+                          <td className="py-2 px-4 text-center font-mono text-slate-500">{formatCurrency(rec.payableBasic || rec.payableConsol || 0)}</td>
+                          <td className="py-2 px-4 text-center font-mono text-slate-500">{formatCurrency(rec.payableHra || 0)}</td>
+                          <td className="py-2 px-4 text-center font-mono text-indigo-900">{formatCurrency(rec.payableGross || 0)}</td>
+                          <td className="py-2 px-4 text-center font-mono text-rose-700">{formatCurrency(rec.ptax || 0)}</td>
+                          <td className="py-2 px-4 text-center font-mono text-rose-700">{formatCurrency(rec.pf || 0)}</td>
+                          <td className="py-2 px-4 text-center font-mono text-rose-700">{formatCurrency(rec.esi || 0)}</td>
+                          <td className="py-2 px-4 text-center font-mono text-emerald-800 font-black border-l border-slate-200 bg-emerald-50/10 text-xs">{formatCurrency(rec.netPay || 0)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+            </div>
+          ) : (
+            <div className="bg-white border border-slate-200 p-16 rounded-[24px] text-center text-slate-500 font-medium shadow-premium select-all flex flex-col items-center justify-center">
+              <Download className="w-12 h-12 text-slate-350 mb-3" />
+              <h2 className="text-slate-900 font-extrabold text-base mb-1">Click above to generate the payroll ledger</h2>
+              <p className="text-slate-400 text-xs max-w-md mx-auto leading-relaxed font-semibold">Select the desired cycle start and end ranges to retrieve and analyze historical earnings, professional tax, PF, and net disbursement reports.</p>
+            </div>
+          )}
 
         </div>
       )}

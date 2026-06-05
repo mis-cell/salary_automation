@@ -45,6 +45,54 @@ export interface DashboardSummaryRow {
   status: string;
 }
 
+export interface ServiceLogEntry {
+  timestamp: string;
+  type: "INFO" | "SUCCESS" | "ERROR";
+  action: string;
+  details: string;
+}
+
+// Persistent memory-based queue for debugging
+let serviceLogs: ServiceLogEntry[] = [];
+
+// Try to initialize from localStorage to keep logs across reloads
+try {
+  const saved = localStorage.getItem("YASHODA_SERVICE_AUDIT_LOGS");
+  if (saved) {
+    serviceLogs = JSON.parse(saved);
+  }
+} catch (e) {
+  // Ignored
+}
+
+export function getServiceLogs(): ServiceLogEntry[] {
+  return serviceLogs;
+}
+
+export function clearServiceLogs() {
+  serviceLogs = [];
+  try {
+    localStorage.removeItem("YASHODA_SERVICE_AUDIT_LOGS");
+  } catch (e) {}
+}
+
+export function addServiceLog(type: "INFO" | "SUCCESS" | "ERROR", action: string, details: string) {
+  const entry: ServiceLogEntry = {
+    timestamp: new Date().toLocaleTimeString(),
+    type,
+    action,
+    details
+  };
+  serviceLogs.unshift(entry);
+  if (serviceLogs.length > 100) {
+    serviceLogs = serviceLogs.slice(0, 100);
+  }
+  try {
+    localStorage.setItem("YASHODA_SERVICE_AUDIT_LOGS", JSON.stringify(serviceLogs));
+  } catch (e) {}
+  console.log(`[SpreadsheetService] [${type}] [${action}] ${details}`);
+}
+
 // Safe string parser to filter undefined, null, or 'null' literals
 const safeStr = (val: any): string => {
   if (val === null || val === undefined) return '';
@@ -133,8 +181,9 @@ export function saveDeletedEmpCodes(codes: string[]) {
 /**
  * Universal Gviz Google Sheets reader
  */
-async function fetchSheetRows(sheetName: string): Promise<any[][]> {
+export async function fetchSheetRows(sheetName: string): Promise<any[][]> {
   const sheetId = getSheetId();
+  addServiceLog("INFO", "READ_SHEET_ROW_START", `Requesting data from sheet: "${sheetName}" using spreadsheet: "${sheetId}"`);
   try {
     const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
     const response = await fetch(url);
@@ -155,9 +204,12 @@ async function fetchSheetRows(sheetName: string): Promise<any[][]> {
     }
 
     const table = obj.table;
-    if (!table || !table.rows) return [];
+    if (!table || !table.rows) {
+      addServiceLog("SUCCESS", "READ_SHEET_ROW_EMPTY", `Successfully parsed tab "${sheetName}", but it contains 0 rows.`);
+      return [];
+    }
 
-    return table.rows.map((r: any) => {
+    const rows = table.rows.map((r: any) => {
       if (!r || !r.c) return [];
       return r.c.map((cell: any) => {
         if (!cell) return null;
@@ -165,6 +217,9 @@ async function fetchSheetRows(sheetName: string): Promise<any[][]> {
         return cell.v;
       });
     });
+
+    addServiceLog("SUCCESS", "READ_SHEET_ROW_OK", `Parsed ${rows.length} rows successfully from tab "${sheetName}".`);
+    return rows;
   } catch (err: any) {
     console.error(`Error parsing sheet ${sheetName}:`, err);
     // Produce human-friendly sharing suggestions
@@ -172,6 +227,7 @@ async function fetchSheetRows(sheetName: string): Promise<any[][]> {
     if (friendlyMessage.includes("Failed to fetch") || friendlyMessage.includes("NetworkError")) {
       friendlyMessage = "CORS Policy Blocked Fetch. This happens when your Google Sheet is private. Open your Google Sheet, click 'Share' in the top-right, and change general access to 'Anyone with the link can view' (Viewer).";
     }
+    addServiceLog("ERROR", "READ_SHEET_ROW_FAILED", `Failed to read tab "${sheetName}". Error: ${friendlyMessage}`);
     throw new Error(friendlyMessage);
   }
 }
@@ -184,7 +240,7 @@ export async function fetchEmployeeDetails(): Promise<EmployeeRow[]> {
   try {
     const rawRows = await fetchSheetRows('emp_details');
     if (rawRows.length > 0) {
-      const rows = rawRows.slice(1);
+      const rows = rawRows.filter(row => row.length > 1 && safeStrUpper(row[1]) !== "EMP_CODE");
       sheetEmployees = rows
         .map((row) => ({
           serialNumber: safeStr(row[0]),
@@ -243,7 +299,7 @@ export async function fetchEmployeeDetails(): Promise<EmployeeRow[]> {
 export async function fetchLeaveBalances(): Promise<LeaveBalanceRow[]> {
   const rawRows = await fetchSheetRows('leave_balance');
   if (rawRows.length === 0) return [];
-  const rows = rawRows.slice(1);
+  const rows = rawRows.filter(row => row.length > 0 && safeStrUpper(row[0]) !== "EMP_CODE");
   return rows
     .map((row) => ({
       empCode: safeStr(row[0]),
@@ -267,6 +323,7 @@ export async function fetchLeaveBalances(): Promise<LeaveBalanceRow[]> {
  */
 export async function fetchDashboardSummary(): Promise<DashboardSummaryRow[]> {
   const scriptUrl = getAppsScriptUrl();
+  addServiceLog("INFO", "GET_DASHBOARD_START", `Connecting to Apps Script Web App for summary analytics...`);
   if (scriptUrl) {
     try {
       const response = await fetch(scriptUrl, {
@@ -279,6 +336,7 @@ export async function fetchDashboardSummary(): Promise<DashboardSummaryRow[]> {
       if (response.ok) {
         const json = await response.json();
         if (json.status === "Success" && Array.isArray(json.data)) {
+          addServiceLog("SUCCESS", "GET_DASHBOARD_OK", `Fetched ${json.data.length} months dashboard details from Apps Script.`);
           return json.data.map((item: any) => ({
             month: safeStr(item.month),
             year: safeStr(item.year),
@@ -287,18 +345,24 @@ export async function fetchDashboardSummary(): Promise<DashboardSummaryRow[]> {
             consolidatedTotal: parseNum(item.consolidated),
             status: safeStr(item.status || "PROCESSED")
           })).filter((s: DashboardSummaryRow) => s.month !== '' && s.year !== '');
+        } else {
+          addServiceLog("ERROR", "GET_DASHBOARD_FAIL_BODY", `Apps Script returned status not successful: ${json.status || 'Unknown'}`);
         }
+      } else {
+        addServiceLog("ERROR", "GET_DASHBOARD_HTTP_ERROR", `Apps Script HTTP Status: ${response.status}`);
       }
-    } catch (err) {
+    } catch (err: any) {
+      addServiceLog("INFO", "GET_DASHBOARD_FALLBACK", `Web App API blocked or not configured (CORS/Private). Error: ${err.message || err}. Falling back to Gviz direct sheet fetch...`);
       console.warn("Web App API read failed or CORS blocked. Falling back to Gviz direct sheets fetch...", err);
     }
   }
 
   // Fallback to direct Gviz spreadsheet reader
+  addServiceLog("INFO", "READ_DASHBOARD_GVIZ", `Fetching dashboard summaries directly from "dashboard_summary" sheet tab...`);
   const rawRows = await fetchSheetRows('dashboard_summary');
   if (rawRows.length === 0) return [];
-  const rows = rawRows.slice(1);
-  return rows
+  const rows = rawRows.filter(row => row.length > 0 && safeStrUpper(row[0]) !== "MONTH");
+  const parsed = rows
     .map((row) => ({
       month: safeStr(row[0]),
       year: safeStr(row[1]),
@@ -308,4 +372,6 @@ export async function fetchDashboardSummary(): Promise<DashboardSummaryRow[]> {
       status: safeStr(row[5]),
     }))
     .filter(s => s.month !== '' && s.year !== '');
+  addServiceLog("SUCCESS", "READ_DASHBOARD_GVIZ_OK", `Successfully fetched and compiled ${parsed.length} items from worksheet.`);
+  return parsed;
 }

@@ -40,10 +40,12 @@ function doPost(e) {
         "<<Department>>": emp.dept,
         "<<Payable days>>": emp.payableDays,
         
+        "<<Availed PL>>": emp.usedPL || 0,
         "<<Used PL>>": emp.usedPL || 0,
         "<<PL Balance>>": emp.plBal || 0,
         "<<Earned PL>>": 2.5,
         
+        "<<Availed SL>>": emp.usedSL || 0,
         "<<Used SL>>": emp.usedSL || 0,
         "<<SL Balance>>": emp.slBal || 0,
         "<<Earned SL>>": 1.25,
@@ -62,7 +64,6 @@ function doPost(e) {
         "<<I. Tax>>": emp.iTax || 0,
         "<<Others>>": emp.others || 0,
         
-        "<<Total Pay>>": grossPay,
         "<<Total Deduction>>": totalDed,
         "<<Gross Pay>>": grossPay,
         "<<Total Net Payable>>": netPay,
