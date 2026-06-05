@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Routes, Route, Link, useLocation, HashRouter } from "react-router-dom";
 import { useAuth, AuthProvider } from "./lib/AuthContext";
-import { Menu, LogOut, FileText, Users, CalendarDays, LayoutDashboard, Calculator, IndianRupee, Settings, Check, Monitor, X, HelpCircle, Palette, BarChart3 } from "lucide-react";
+import { Menu, LogOut, FileText, Users, CalendarDays, LayoutDashboard, Calculator, IndianRupee, Settings, Check, Monitor, X, HelpCircle, Palette, BarChart3, Database, HeartHandshake } from "lucide-react";
 import Dashboard from "./pages/Dashboard";
 import EnterSalary from "./pages/EnterSalary";
 import ManageEmployees from "./pages/ManageEmployees";
@@ -9,6 +9,7 @@ import LeaveBalance from "./pages/LeaveBalance";
 import PayDetails from "./pages/PayDetails";
 import { getSheetId, setSheetId, getAppsScriptUrl, setAppsScriptUrl, getServiceLogs, clearServiceLogs } from "./lib/googleSheetsService";
 import { ThemeProvider, useTheme, themeConfigs, ThemeKey } from "./lib/ThemeContext";
+import { isOfflineMode, setOfflineMode, resetOfflineDatabase } from "./lib/localDatabase";
 
 // Modern, gradient-accented NavLink with subtle animation and active state
 const NavLink = ({ to, children, icon: Icon, mobile }: { to: string; children: React.ReactNode; icon?: any; mobile?: boolean }) => {
@@ -56,6 +57,7 @@ function AppContent() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [tempSheetId, setTempSheetId] = useState(getSheetId());
   const [tempAppsScriptUrl, setTempAppsScriptUrl] = useState(getAppsScriptUrl());
+  const [tempOfflineMode, setTempOfflineMode] = useState(isOfflineMode());
   const [isFullScreen, setIsFullScreen] = useState(true);
   const [logsList, setLogsList] = useState(() => getServiceLogs());
 
@@ -80,6 +82,7 @@ function AppContent() {
   const handleSaveSettings = () => {
     setSheetId(tempSheetId);
     setAppsScriptUrl(tempAppsScriptUrl);
+    setOfflineMode(tempOfflineMode);
     setSettingsOpen(false);
     window.location.reload();
   };
@@ -341,50 +344,117 @@ function AppContent() {
                 </div>
               </div>
 
-              {/* SECTION 2: SHEETS CONNECTION */}
+              {/* SECTION 2: DATABASE ENGINE CONFIGURATION */}
               <div className="space-y-4">
                 <h3 className="text-xs font-black uppercase text-slate-400 tracking-wider flex items-center gap-1.5 border-b border-slate-100 pb-2">
-                  <Settings className="w-3.5 h-3.5 text-slate-550 text-slate-500" />
-                  Google Sheets Connection
+                  <Database className="w-3.5 h-3.5 text-slate-550 text-slate-500" />
+                  Database Engine Mode
                 </h3>
 
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-605 text-slate-700 uppercase tracking-wider flex items-center gap-1">
-                    Google Sheet ID <HelpCircle className="w-3" />
-                  </label>
-                  <input 
-                    type="text" 
-                    value={tempSheetId} 
-                    onChange={(e) => setTempSheetId(e.target.value)} 
-                    className="w-full px-4 py-2.5 border border-slate-200 focus:border-slate-400 rounded-xl text-sm font-mono text-slate-700 bg-slate-50/50 focus:bg-white transition-all outline-none focus:ring-2 focus:ring-slate-200"
-                    placeholder="1IoGYxMMOrVzkHyqp1n2InXgf14jLJUEfKZMX5MWVBj4"
-                  />
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setTempOfflineMode(true)}
+                    className={`flex-1 py-3 px-4 border rounded-2xl text-xs font-bold flex flex-col items-center gap-1 transition-all cursor-pointer ${
+                      tempOfflineMode 
+                        ? "bg-slate-900 border-slate-900 text-white shadow-md shadow-slate-900/10" 
+                        : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 font-black uppercase tracking-wider text-[10px]">
+                      <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
+                      Offline Relational DB
+                    </div>
+                    <span className="text-[9px] opacity-75 font-medium">Auto-persistent inside browser storage</span>
+                  </button>
+                  <button
+                    onClick={() => setTempOfflineMode(false)}
+                    className={`flex-1 py-3 px-4 border rounded-2xl text-xs font-bold flex flex-col items-center gap-1 transition-all cursor-pointer ${
+                      !tempOfflineMode 
+                        ? "bg-slate-900 border-slate-900 text-white shadow-md shadow-slate-900/10" 
+                        : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 font-black uppercase tracking-wider text-[10px]">
+                      Cloud Synced G-Sheet
+                    </div>
+                    <span className="text-[9px] opacity-75 font-medium">Binds to live Google Spreadsheets</span>
+                  </button>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-605 text-slate-700 uppercase tracking-wider flex items-center gap-1">
-                    Apps Script URL <HelpCircle className="w-3" />
-                  </label>
-                  <input 
-                    type="text" 
-                    value={tempAppsScriptUrl} 
-                    onChange={(e) => setTempAppsScriptUrl(e.target.value)} 
-                    className="w-full px-4 py-2.5 border border-slate-200 focus:border-slate-400 rounded-xl text-sm font-mono text-slate-700 bg-slate-50/50 focus:bg-white transition-all outline-none focus:ring-2 focus:ring-slate-200"
-                    placeholder="https://script.google.com/macros/s/.../exec"
-                  />
-                </div>
+                {tempOfflineMode ? (
+                  <div className="bg-slate-50/80 p-4.5 rounded-2xl border border-slate-200 space-y-3">
+                    <h4 className="text-xs font-black text-slate-700 uppercase tracking-widest flex items-center gap-1.5">
+                      <HeartHandshake className="w-4 h-4 text-emerald-500 animate-pulse" /> Windows 7 Standalone Suite
+                    </h4>
+                    <p className="text-[11px] text-slate-550 text-slate-600 font-medium leading-relaxed">
+                      Your database files, rosters, processed pay logs, and calculations remain 100% locally saved inside your browser. No Node.js server, Python, or local relational installs are needed!
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          if (confirm("Reset local database? This wipes all localized edits and restores standard pre-seeded rosters and leave balance ledgers.")) {
+                            resetOfflineDatabase();
+                            alert("Local database reset successfully! The application will refresh.");
+                            window.location.reload();
+                          }
+                        }}
+                        className="flex-1 py-2 px-3 border border-rose-200 text-rose-600 hover:bg-rose-50 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer bg-white"
+                      >
+                        Reset Offline DB
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          alert("To operate this utility 100% offline on any Windows 7 computer:\n\n1. Simply select 'Save Page As...' (Ctrl+S) inside your Google Chrome or Mozilla Firefox menu.\n2. Choose 'Webpage, Complete' option to download the offline file bundle.\n3. Copy this file into your target folders. Double click it anytime with or without active internet connections to start!");
+                        }}
+                        className="flex-1 py-2 px-3 border border-indigo-200 text-indigo-600 hover:bg-indigo-50 bg-white rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                      >
+                        Launcher Guide
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4 pt-1 animate-in fade-in duration-200">
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
+                        Google Sheet ID <HelpCircle className="w-3" />
+                      </label>
+                      <input 
+                        type="text" 
+                        value={tempSheetId} 
+                        onChange={(e) => setTempSheetId(e.target.value)} 
+                        className="w-full px-4 py-2.5 border border-slate-200 focus:border-slate-400 rounded-xl text-sm font-mono text-slate-700 bg-slate-50/50 focus:bg-white transition-all outline-none focus:ring-2 focus:ring-slate-200"
+                        placeholder="1IoGYxMMOrVzkHyqp1n2InXgf14jLJUEfKZMX5MWVBj4"
+                      />
+                    </div>
 
-                <div className="bg-gradient-to-br from-slate-50 to-white p-4.5 rounded-xl border border-slate-100 shadow-inner">
-                  <p className="text-[11px] font-extrabold text-slate-850 text-slate-800 mb-2 flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse" />
-                    Setup Requirements
-                  </p>
-                  <ul className="space-y-1.5 text-[11px] text-slate-550 text-slate-600 font-medium leading-relaxed list-disc pl-4">
-                    <li>Share Google Sheet with <span className="font-bold text-slate-800">"Anyone with the link"</span></li>
-                    <li>Set permission to <span className="font-bold text-slate-800">Viewer</span> for CORS compatibility</li>
-                    <li>Deploy Apps Script as Web App with authorization to <span className="font-bold text-slate-800">"Anyone"</span></li>
-                  </ul>
-                </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
+                        Apps Script URL <HelpCircle className="w-3" />
+                      </label>
+                      <input 
+                        type="text" 
+                        value={tempAppsScriptUrl} 
+                        onChange={(e) => setTempAppsScriptUrl(e.target.value)} 
+                        className="w-full px-4 py-2.5 border border-slate-200 focus:border-slate-400 rounded-xl text-sm font-mono text-slate-700 bg-slate-50/50 focus:bg-white transition-all outline-none focus:ring-2 focus:ring-slate-200"
+                        placeholder="https://script.google.com/macros/s/.../exec"
+                      />
+                    </div>
+
+                    <div className="bg-gradient-to-br from-slate-50 to-white p-4.5 rounded-xl border border-slate-100 shadow-inner">
+                      <p className="text-[11px] font-extrabold text-slate-850 text-slate-800 mb-2 flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse" />
+                        Setup Requirements
+                      </p>
+                      <ul className="space-y-1.5 text-[11px] text-slate-550 text-slate-600 font-medium leading-relaxed list-disc pl-4">
+                        <li>Share Google Sheet with <span className="font-bold text-slate-800">"Anyone with the link"</span></li>
+                        <li>Set permission to <span className="font-bold text-slate-800">Viewer</span> for CORS compatibility</li>
+                        <li>Deploy Apps Script as Web App with authorization to <span className="font-bold text-slate-800">"Anyone"</span></li>
+                      </ul>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* SECTION 3: SYSTEM AUDIT LOGGER */}

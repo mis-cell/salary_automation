@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Loader2, Play, CheckCircle2, FileText, AlertCircle, ExternalLink, RefreshCw, Settings, Info, Keyboard, Send, AppWindow } from "lucide-react";
 import { fetchEmployeeDetails, fetchLeaveBalances, EmployeeRow, LeaveBalanceRow, getSheetId, getAppsScriptUrl, addServiceLog } from "../lib/googleSheetsService";
+import { isOfflineMode, dbGetMonthlyPayroll, dbProcessPayroll } from "../lib/localDatabase";
 import ConfirmDialog from "../components/ConfirmDialog";
 
 interface EditableRow {
@@ -191,6 +192,39 @@ export default function EnterSalary() {
 
   const fetchProcessedData = async (targetMonth: string, targetYear: string) => {
     try {
+      if (isOfflineMode()) {
+        const localRows = dbGetMonthlyPayroll(targetMonth, targetYear);
+        if (localRows.length === 0) {
+          setResults([]);
+          return;
+        }
+
+        const parsedRows: ProcessedRow[] = localRows.map((cells: any) => {
+          return {
+            empCode: cells[0] ? String(cells[0]).trim() : "",
+            name: cells[1] ? String(cells[1]).trim() : "",
+            type: cells[2] ? String(cells[2]).trim() : "",
+            payableDays: Number(cells[3]),
+            actualBasic: Number(cells[4] || 0),
+            payableBasic: Number(cells[5] || 0),
+            actualHra: Number(cells[6] || 0),
+            payableHra: Number(cells[7] || 0),
+            actualGross: Number(cells[8] || 0),
+            payableGross: Number(cells[9] || 0),
+            actualConsol: Number(cells[10] || 0),
+            payableConsol: Number(cells[11] || 0),
+            ptax: Number(cells[12] || 0),
+            pf: Number(cells[13] || 0),
+            esi: Number(cells[14] || 0),
+            netPay: Number(cells[15] || 0),
+            pdfUrl: cells[16] ? String(cells[16]).trim() : "Processing...",
+          };
+        });
+
+        setResults(parsedRows);
+        return;
+      }
+
       const sheetName = `${targetMonth}_${targetYear}`;
       const sheetId = getSheetId();
       const sheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
@@ -263,6 +297,23 @@ export default function EnterSalary() {
     setConfirmOpen(false);
     setLoading(true);
     setResults([]);
+
+    if (isOfflineMode()) {
+      setNotification({ message: "Windows 7 Local Relational Mode: Computing payroll values locally...", type: "info" });
+      addServiceLog("INFO", "WRITE_PROCESS_SALARY_START", `Computing payroll locally inside browser for: ${month} ${year}.`);
+      
+      const selectedRows = rows.filter(r => selectedEmpCodes.includes(r.empCode));
+      dbProcessPayroll(month, year, Number(defaultPayableDays), selectedEmpCodes, selectedRows);
+      
+      setTimeout(async () => {
+        await fetchProcessedData(month, year);
+        setLoading(false);
+        addServiceLog("SUCCESS", "WRITE_PROCESS_SALARY_COMPLETE", `Successfully computed offline payroll database entries for ${month} ${year}.`);
+        setNotification({ message: "Offline calculation completed! Local database updated.", type: "success" });
+      }, 1000);
+      return;
+    }
+
     setNotification({ message: "Connecting to Apps Script Engine...", type: "info" });
     
     addServiceLog("INFO", "WRITE_PROCESS_SALARY_START", `Sending payroll payload to Apps Script for: ${month} ${year}. ${selectedEmpCodes.length} employees selected.`);
