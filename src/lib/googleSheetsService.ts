@@ -1,5 +1,3 @@
-import { isOfflineMode, dbGetEmployees, dbSaveEmployees, dbGetLeaves, dbGetDashboardSummary, dbGetMonthlyPayroll } from "./localDatabase";
-
 export interface EmployeeRow {
   serialNumber: string;
   empCode: string;
@@ -155,9 +153,6 @@ const EMPLOYEES_OVERRIDE_KEY = 'YASHODA_EMPLOYEES_OVERRIDE';
 const EMPLOYEES_DELETED_KEY = 'YASHODA_EMPLOYEES_DELETED';
 
 export function getLocalEmployees(): EmployeeRow[] {
-  if (isOfflineMode()) {
-    return dbGetEmployees();
-  }
   try {
     const list = localStorage.getItem(EMPLOYEES_OVERRIDE_KEY);
     return list ? JSON.parse(list) : [];
@@ -167,17 +162,10 @@ export function getLocalEmployees(): EmployeeRow[] {
 }
 
 export function saveLocalEmployees(list: EmployeeRow[]) {
-  if (isOfflineMode()) {
-    dbSaveEmployees(list);
-    return;
-  }
   localStorage.setItem(EMPLOYEES_OVERRIDE_KEY, JSON.stringify(list));
 }
 
 export function getDeletedEmpCodes(): string[] {
-  if (isOfflineMode()) {
-    return [];
-  }
   try {
     const list = localStorage.getItem(EMPLOYEES_DELETED_KEY);
     return list ? JSON.parse(list) : [];
@@ -187,9 +175,6 @@ export function getDeletedEmpCodes(): string[] {
 }
 
 export function saveDeletedEmpCodes(codes: string[]) {
-  if (isOfflineMode()) {
-    return;
-  }
   localStorage.setItem(EMPLOYEES_DELETED_KEY, JSON.stringify(codes));
 }
 
@@ -197,32 +182,6 @@ export function saveDeletedEmpCodes(codes: string[]) {
  * Universal Gviz Google Sheets reader
  */
 export async function fetchSheetRows(sheetName: string): Promise<any[][]> {
-  if (isOfflineMode()) {
-    addServiceLog("INFO", "READ_SHEET_ROW_OFFLINE", `Local DB Active: Fetching "${sheetName}" from browser relational database.`);
-    if (sheetName === "emp_details") {
-      const emps = dbGetEmployees();
-      return emps.map(p => [
-        p.serialNumber, p.empCode, p.name, p.salaryType, p.department, p.designation, p.presentStatus, p.doj,
-        p.basic, p.hra, p.conv, p.grossSalary, p.pf, p.esi, p.medi, p.pl, p.lta, p.bonus, p.gratuity, p.ctcPerMonth
-      ]);
-    } else if (sheetName === "leave_balance") {
-      const leaves = dbGetLeaves();
-      return leaves.map(p => [
-        p.empCode, p.name, p.month, p.year, p.openingPL, p.openingSL, p.creditedPL, p.creditedSL, p.usedPL, p.usedSL, p.closingPL, p.closingSL
-      ]);
-    } else if (sheetName === "dashboard_summary") {
-      const summaries = dbGetDashboardSummary();
-      return summaries.map(p => [
-        p.month, p.year, p.totalPaid, p.regularTotal, p.consolidatedTotal, p.status
-      ]);
-    } else {
-      const parts = sheetName.split("_");
-      const m = parts[0];
-      const y = parts[1] || "2026";
-      return dbGetMonthlyPayroll(m, y);
-    }
-  }
-
   const sheetId = getSheetId();
   addServiceLog("INFO", "READ_SHEET_ROW_START", `Requesting data from sheet: "${sheetName}" using spreadsheet: "${sheetId}"`);
   try {
@@ -277,10 +236,6 @@ export async function fetchSheetRows(sheetName: string): Promise<any[][]> {
  * Fetch employee details
  */
 export async function fetchEmployeeDetails(): Promise<EmployeeRow[]> {
-  if (isOfflineMode()) {
-    addServiceLog("SUCCESS", "FETCH_EMPLOYEES_OFFLINE", "Loaded employees list from browser relational database.");
-    return dbGetEmployees();
-  }
   let sheetEmployees: EmployeeRow[] = [];
   try {
     const rawRows = await fetchSheetRows('emp_details');
@@ -342,10 +297,6 @@ export async function fetchEmployeeDetails(): Promise<EmployeeRow[]> {
  * Fetch Leave balances
  */
 export async function fetchLeaveBalances(): Promise<LeaveBalanceRow[]> {
-  if (isOfflineMode()) {
-    addServiceLog("SUCCESS", "FETCH_LEAVES_OFFLINE", "Loaded leave balances list from browser relational database.");
-    return dbGetLeaves();
-  }
   const rawRows = await fetchSheetRows('leave_balance');
   if (rawRows.length === 0) return [];
   const rows = rawRows.filter(row => row.length > 0 && safeStrUpper(row[0]) !== "EMP_CODE");
@@ -371,10 +322,6 @@ export async function fetchLeaveBalances(): Promise<LeaveBalanceRow[]> {
  * Fetch Dashboard summaries
  */
 export async function fetchDashboardSummary(): Promise<DashboardSummaryRow[]> {
-  if (isOfflineMode()) {
-    addServiceLog("SUCCESS", "FETCH_DASHBOARD_OFFLINE", "Loaded monthly dashboard summaries from browser relational database.");
-    return dbGetDashboardSummary();
-  }
   const scriptUrl = getAppsScriptUrl();
   addServiceLog("INFO", "GET_DASHBOARD_START", `Connecting to Apps Script Web App for summary analytics...`);
   if (scriptUrl) {
