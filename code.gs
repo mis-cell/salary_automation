@@ -84,7 +84,7 @@ function doPost(e) {
     var action = data.action;
 
     if (action === "PROCESS_SALARY") {
-      var res = processMonthlySalary(data.month, data.year, data.payableDays, data.selectedEmpCodes);
+      var res = processMonthlySalary(data.month, data.year, data.payableDays, data.selectedEmpCodes, data.employeesList);
       return ContentService.createTextOutput(JSON.stringify({ status: "Success", data: res }))
         .setMimeType(ContentService.MimeType.JSON);
         
@@ -106,7 +106,7 @@ function doPost(e) {
 // CORE CALCULATION LOGIC
 // -------------------------------------------------------------------------
 
-function processMonthlySalary(month, year, defaultPayableDays, selectedEmpCodes) {
+function processMonthlySalary(month, year, defaultPayableDays, selectedEmpCodes, employeesList) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var monthSheetName = month + "_" + year;
   var sheet = ss.getSheetByName(monthSheetName);
@@ -143,22 +143,32 @@ function processMonthlySalary(month, year, defaultPayableDays, selectedEmpCodes)
     }
   }
 
-  var empSheet = ss.getSheetByName("emp_details");
-  var empData = empSheet.getDataRange().getValues();
   var summary = { regular: 0, consolidated: 0, total: 0 };
   var leaveSheet = ss.getSheetByName("leave_balance");
-  
   var rowsToSave = [];
-  var maxDays = 31; // Simplified: Assumed logic for maximum days in the month
+
+  // Create a map of the UI-provided employees list
+  var uiEmpMap = {};
+  if (employeesList && employeesList.length > 0) {
+    for (var u = 0; u < employeesList.length; u++) {
+      uiEmpMap[String(employeesList[u].empCode).trim()] = employeesList[u];
+    }
+  }
+
+  var empSheet = ss.getSheetByName("emp_details");
+  var empData = empSheet.getDataRange().getValues();
+  
+  // Use actual month days for pro-rata
+  var monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  var mIdx = monthNames.indexOf(month);
+  var maxDays = new Date(year, mIdx !== -1 ? mIdx + 1 : 1, 0).getDate();
 
   for (var i = 1; i < empData.length; i++) {
     var emp = empData[i];
     if (emp[6] !== "ACTIVE") continue; // Process only active employees
 
     var empCode = String(emp[1]).trim();
-    var name = emp[2];
-    var type = emp[3];
-
+    
     // Check if this employee was selected for processing
     var isSelected = !selectedEmpCodes || selectedEmpCodes.length === 0 || selectedEmpCodes.indexOf(empCode) !== -1;
 
@@ -167,43 +177,67 @@ function processMonthlySalary(month, year, defaultPayableDays, selectedEmpCodes)
       if (existingRowsMap[empCode]) {
         rowsToSave.push(existingRowsMap[empCode]);
         var netVal = parseFloat(existingRowsMap[empCode][15]) || 0;
-        if (type === "REGULAR") summary.regular += netVal;
+        var t = String(existingRowsMap[empCode][2]).trim();
+        if (t === "REGULAR") summary.regular += netVal;
         else summary.consolidated += netVal;
         summary.total += netVal;
       }
       continue;
     }
 
-    var basic = parseFloat(emp[8]) || 0;
-    var hra = parseFloat(emp[9]) || 0;
-    var conv = parseFloat(emp[10]) || 0;
-    var gross = parseFloat(emp[11]) || 0;
+    var name = emp[2];
+    var type = emp[3];
     
-    var actPf = parseFloat(emp[12]) || 0;
-    var actEsi = parseFloat(emp[13]) || 0;
+    var uiData = uiEmpMap[empCode];
 
-    var proRataFactor = defaultPayableDays / maxDays;
+    // Use UI data if available, otherwise default to sheet data
+    var empPayableDays = uiData && uiData.payableDays !== undefined ? uiData.payableDays : defaultPayableDays;
+    // ensure we don't exceed max days
+    empPayableDays = Math.min(Math.max(0, empPayableDays), maxDays); 
+
+    var basic = uiData && uiData.basic !== undefined ? uiData.basic : (parseFloat(emp[8]) || 0);
+    var hra = uiData && uiData.hra !== undefined ? uiData.hra : (parseFloat(emp[9]) || 0);
+    var conv = uiData && uiData.conv !== undefined ? uiData.conv : (parseFloat(emp[10]) || 0);
+    var actPf = uiData && uiData.pf !== undefined ? uiData.pf : (parseFloat(emp[12]) || 0);
+    var actEsi = uiData && uiData.esi !== undefined ? uiData.esi : (parseFloat(emp[13]) || 0);
+    var ptax = uiData && uiData.ptax !== undefined ? uiData.ptax : 130;
+    var uiItax = uiData && uiData.itax !== undefined ? uiData.itax : 0;
+    var uiAdv = uiData && uiData.adv !== undefined ? uiData.adv : 0;
+    var uiOth = uiData && uiData.oth !== undefined ? uiData.oth : 0;
+    
+    var gross = basic + hra + conv;
+
+    // Use maxDays for prorata if the user's default payable days is 26, maybe their company counts 26 as full?
+    // Wait, let's use the explicit denominator that is common for pro-rata: Max days in month. 
+    // Or if they provided 26 as default, use that as the denominator!
+    // Since defaultPayableDays is set in UI as "26", maybe that's their standard month.
+    var proRataFactor = empPayableDays / defaultPayableDays; 
+    
+    // Add arrears
+    var totalArrears = 0;
+    if (uiData) totalArrears = (uiData.bArr || 0) + (uiData.hArr || 0);
 
     var payBasic = 0, payHra = 0, payGross = 0;
     var actConsol = 0, payConsol = 0;
-    var ptax = 130; // Deductions mapped to the mock requirement
     var pf = 0, esi = 0, net = 0;
 
     if (type === "REGULAR") {
         payBasic = Math.round(basic * proRataFactor);
         payHra = Math.round(hra * proRataFactor);
         var payConv = Math.round(conv * proRataFactor);
-        payGross = payBasic + payHra + payConv;
+        payGross = payBasic + payHra + payConv + totalArrears;
         pf = actPf;
         esi = actEsi;
-        net = payGross - ptax - pf - esi;
+        net = payGross - ptax - pf - esi - uiItax - uiAdv - uiOth;
+        net = Math.max(0, net);
         summary.regular += net;
     } else {
         // Consolidated
         actConsol = gross; // Uses gross as full salary
         payConsol = Math.round(actConsol * proRataFactor);
-        payGross = payConsol;
-        net = payConsol - ptax; // Usually no PF/ESI
+        payGross = payConsol + totalArrears;
+        net = payGross - ptax - uiItax - uiAdv - uiOth; // Usually no PF/ESI
+        net = Math.max(0, net);
         summary.consolidated += net;
     }
     
@@ -213,13 +247,17 @@ function processMonthlySalary(month, year, defaultPayableDays, selectedEmpCodes)
     var pdfUrl = "Processing...";
 
     rowsToSave.push([
-      empCode, name, type, defaultPayableDays,
+      empCode, name, type, empPayableDays,
       basic, payBasic, hra, payHra, gross, payGross,
       actConsol, payConsol, ptax, pf, esi, net, pdfUrl
     ]);
     
-    // Auto update leave balance dynamically (+2.5 PL, +1.25 SL)
-    if (leaveSheet) {
+    // Auto update leave balance dynamically based on UI selections
+    if (leaveSheet && uiData) {
+        var takePL = uiData.takePL || 0;
+        var takeSL = uiData.takeSL || 0;
+        updateEmployeeLeaveUi(leaveSheet, empCode, name, month, year, takePL, takeSL);
+    } else if (leaveSheet) {
         updateEmployeeLeave(leaveSheet, empCode, name, month, year);
     }
   }
@@ -350,6 +388,36 @@ function updateEmployeeLeave(leaveSheet, empCode, name, month, year) {
     lastPl, lastSl,
     creditedPl, creditedSl,
     0, 0, // used 0 by default, can be edited manually in sheet
+    newClosingPl, newClosingSl
+  ]);
+}
+
+function updateEmployeeLeaveUi(leaveSheet, empCode, name, month, year, takePL, takeSL) {
+  var data = leaveSheet.getDataRange().getValues();
+  var lastPl = 0, lastSl = 0;
+
+  var creditedPl = 2.50;
+  var creditedSl = 1.25;
+
+  var rowIndex = -1;
+  // Search upward to find previous closing balance
+  for (var i = data.length - 1; i >= 1; i--) {
+    if (data[i][0] == empCode) {
+      lastPl = parseFloat(data[i][10]) || 0; // Closing PL
+      lastSl = parseFloat(data[i][11]) || 0; // Closing SL
+      rowIndex = i + 1;
+      break;
+    }
+  }
+
+  var newClosingPl = lastPl + creditedPl - (takePL || 0);
+  var newClosingSl = lastSl + creditedSl - (takeSL || 0);
+
+  leaveSheet.appendRow([
+    empCode, name, month, year,
+    lastPl, lastSl,
+    creditedPl, creditedSl,
+    takePL, takeSL, // used from UI
     newClosingPl, newClosingSl
   ]);
 }

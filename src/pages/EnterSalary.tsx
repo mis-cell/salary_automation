@@ -511,12 +511,20 @@ export default function EnterSalary() {
                   // Math calculations
                   const isConsolidated = r.salaryType === "CONSOLIDATED";
                   
-                  // Compute gross
-                  const basicRate = r.basic;
-                  const hraRate = r.hra;
-                  const convRate = r.conv;
+                  // Compute gross with prorata based on payableDays
+                  const monthIdx = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"].indexOf(month);
+                  const maxDaysInMonth = new Date(Number(year), monthIdx !== -1 ? monthIdx + 1 : 1, 0).getDate();
+                  const empPayableDays = Math.min(Math.max(0, r.payableDays), maxDaysInMonth);
+                  const defaultDenom = Number(defaultPayableDays) || maxDaysInMonth; // Use the user's default payable days as denominator
+                  const proRataFactor = empPayableDays / defaultDenom;
+
+                  const basicRate = isConsolidated ? 0 : Math.round(r.basic * proRataFactor);
+                  const hraRate = isConsolidated ? 0 : Math.round(r.hra * proRataFactor);
+                  const convRate = isConsolidated ? 0 : Math.round(r.conv * proRataFactor);
+                  const consolRate = isConsolidated ? Math.round(r.basic * proRataFactor) : 0;
+                  
                   const totalArrears = r.bArr + r.hArr;
-                  const computedGross = isConsolidated ? r.basic : (basicRate + hraRate + convRate + totalArrears);
+                  const computedGross = consolRate + basicRate + hraRate + convRate + totalArrears;
 
                   // Compute deductions
                   const totalDed = r.ptax + r.pf + r.esi + r.itax + r.adv + r.oth;
